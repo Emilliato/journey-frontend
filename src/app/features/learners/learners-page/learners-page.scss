@@ -1,0 +1,33 @@
+@use '../../../shared/styles/page' as page;
+
+.page {
+  @include page.page;
+}
+
+.page-header {
+  @include page.page-header;
+}
+
+.link-button {
+  @include page.link-button;
+}
+
+.primary-button {
+  @include page.primary-button;
+}
+
+.muted {
+  @include page.muted;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+.learner-list {
+  @include page.learner-list;
+}
+
+.empty-state {
+  @include page.empty-state;
+}
