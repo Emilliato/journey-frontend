@@ -4,13 +4,17 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { LearnerService } from '../../../core/services/learner.service';
 import { JourneyService } from '../../../core/services/journey.service';
+import { ConnectivityService } from '../../../core/services/connectivity.service';
+import { OfflineCacheService } from '../../../core/offline/offline-cache.service';
+import { WebLlmService } from '../../../core/offline/webllm.service';
 import { ChatMessage, Goal, GoalUpdate } from '../../../core/models/journey.models';
 
 /**
- * The online JOURNEY chat surface — see PLAN.md Phase 3. Goal panel state
- * updates live from each message response's `goalUpdates`, no separate
- * polling: the backend returns them inline from the same tool calls that
- * wrote them (see JourneyConversationService on the backend).
+ * The JOURNEY chat surface. Online/offline mode is decided once, from the
+ * real connectivity signal at page load (see ConnectivityService) — not
+ * re-evaluated mid-conversation, so a session's history never mixes the
+ * Claude Proxy and the local WebLLM model. Reconnect mid-session is Phase
+ * 5's Sync Manager territory, not this page's job.
  */
 @Component({
   selector: 'app-chat-page',
@@ -23,10 +27,14 @@ export class ChatPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly learnerService = inject(LearnerService);
   private readonly journeyService = inject(JourneyService);
+  private readonly connectivityService = inject(ConnectivityService);
+  private readonly offlineCache = inject(OfflineCacheService);
+  protected readonly webLlmService = inject(WebLlmService);
 
   private readonly learnerId = this.route.snapshot.paramMap.get('learnerId')!;
   private sessionId: string | null = null;
 
+  readonly isOnlineMode = signal(true);
   readonly learnerName = signal<string | null>(null);
   readonly messages = signal<ChatMessage[]>([]);
   readonly goals = signal<Goal[]>([]);
@@ -39,13 +47,69 @@ export class ChatPage implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
+    // A one-shot real check here, not the continuously-updated isOnline
+    // signal — on a fresh page load the signal's first health-check poll
+    // hasn't resolved yet, so reading it synchronously would just be
+    // reading its navigator.onLine-based initial value, the exact thing
+    // this service exists to not rely on.
+    this.connectivityService.checkOnline().subscribe((online) => {
+      this.isOnlineMode.set(online);
+
+      if (online) {
+        this.initOnline();
+      } else {
+        void this.initOffline();
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (this.isOnlineMode() && this.sessionId) {
+      // Best-effort — the user is navigating away regardless.
+      this.journeyService.completeSession(this.sessionId).subscribe({ error: () => {} });
+    }
+  }
+
+  send(): void {
+    if (this.form.invalid || this.isSending()) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
+    const text = this.form.getRawValue().message!.trim();
+    if (!text) {
+      return;
+    }
+
+    this.messages.update((current) => [...current, { role: 'learner', text }]);
+    this.form.reset();
+    this.isSending.set(true);
+    this.errorMessage.set(null);
+
+    if (this.isOnlineMode() && this.sessionId) {
+      this.sendOnline(text);
+    } else if (this.webLlmService.isSupported()) {
+      void this.sendOffline(text);
+    } else {
+      this.isSending.set(false);
+      this.errorMessage.set("JOURNEY can't generate replies offline on this device.");
+    }
+  }
+
+  private initOnline(): void {
     this.learnerService.getLearner(this.learnerId).subscribe({
-      next: (learner) => this.learnerName.set(learner.displayName),
+      next: (learner) => {
+        this.learnerName.set(learner.displayName);
+        void this.offlineCache.cacheLearnerProfile(learner);
+      },
       error: () => this.learnerName.set(null),
     });
 
     this.journeyService.listGoals(this.learnerId).subscribe({
-      next: (goals) => this.goals.set(goals),
+      next: (goals) => {
+        this.goals.set(goals);
+        void this.offlineCache.cacheGoals(this.learnerId, goals);
+      },
       error: () => {
         /* Non-fatal — the goal panel just starts empty and still updates live. */
       },
@@ -67,36 +131,41 @@ export class ChatPage implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy(): void {
-    if (this.sessionId) {
-      // Best-effort — the user is navigating away regardless.
-      this.journeyService.completeSession(this.sessionId).subscribe({ error: () => {} });
+  private async initOffline(): Promise<void> {
+    const [profile, cachedGoals] = await Promise.all([
+      this.offlineCache.getCachedLearnerProfile(this.learnerId),
+      this.offlineCache.getCachedGoals(this.learnerId),
+    ]);
+
+    this.learnerName.set(profile?.displayName ?? null);
+    this.goals.set(
+      cachedGoals.map((goal) => ({
+        id: goal.id,
+        title: goal.title,
+        description: goal.description,
+        status: goal.status,
+        updatedAt: goal.updatedAt,
+      })),
+    );
+    this.isStarting.set(false);
+
+    if (!this.webLlmService.isSupported()) {
+      this.errorMessage.set(
+        "You're offline and this device doesn't support on-device AI, so JOURNEY can't chat right now — your saved goals are still shown below.",
+      );
     }
   }
 
-  send(): void {
-    if (this.form.invalid || this.isSending() || !this.sessionId) {
-      this.form.markAllAsTouched();
-      return;
-    }
-
-    const text = this.form.getRawValue().message!.trim();
-    if (!text) {
-      return;
-    }
-
-    this.messages.update((current) => [...current, { role: 'learner', text }]);
-    this.form.reset();
-    this.isSending.set(true);
-    this.errorMessage.set(null);
-
-    this.journeyService.sendMessage(this.sessionId, text).subscribe({
+  private sendOnline(text: string): void {
+    this.journeyService.sendMessage(this.sessionId!, text).subscribe({
       next: (response) => {
         this.isSending.set(false);
         this.messages.update((current) => [...current, { role: 'journey', text: response.reply }]);
 
         if (response.goalUpdates.length > 0) {
-          this.goals.update((current) => this.mergeGoalUpdates(current, response.goalUpdates));
+          const merged = this.mergeGoalUpdates(this.goals(), response.goalUpdates);
+          this.goals.set(merged);
+          void this.offlineCache.cacheGoals(this.learnerId, merged);
         }
       },
       error: () => {
@@ -104,6 +173,18 @@ export class ChatPage implements OnInit, OnDestroy {
         this.errorMessage.set('That message could not be sent. Please try again.');
       },
     });
+  }
+
+  private async sendOffline(text: string): Promise<void> {
+    try {
+      const goalTitles = this.goals().map((goal) => goal.title);
+      const reply = await this.webLlmService.generateReply(text, goalTitles);
+      this.isSending.set(false);
+      this.messages.update((current) => [...current, { role: 'journey', text: reply }]);
+    } catch {
+      this.isSending.set(false);
+      this.errorMessage.set('JOURNEY could not generate an offline reply just now.');
+    }
   }
 
   private mergeGoalUpdates(current: Goal[], updates: readonly GoalUpdate[]): Goal[] {
