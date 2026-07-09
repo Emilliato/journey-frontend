@@ -2,11 +2,9 @@ import Dexie, { Table } from 'dexie';
 
 /**
  * Mirrors the backend entities relevant to offline use (see
- * docs/ARCHITECTURE.md's data model). `pendingSync` exists on the two
- * writable tables now so the schema is ready for Phase 5 (the sync API and
- * Angular Sync Manager) — nothing in Phase 4 sets it to true yet, since the
- * offline WebLLM persona is scoped to read-only recall/encouragement, not
- * tool use (see OFFLINE_SYSTEM_PROMPT).
+ * docs/ARCHITECTURE.md's data model). `pendingSync` marks rows written
+ * offline (see OfflineJourneyService) that SyncManagerService still needs
+ * to reconcile with the server; cleared once a sync batch resolves them.
  */
 export interface OfflineLearnerProfile {
   id: string; // learnerId

@@ -6,6 +6,7 @@ import { LearnerService } from '../../../core/services/learner.service';
 import { JourneyService } from '../../../core/services/journey.service';
 import { ConnectivityService } from '../../../core/services/connectivity.service';
 import { OfflineCacheService } from '../../../core/offline/offline-cache.service';
+import { OfflineJourneyService } from '../../../core/offline/offline-journey.service';
 import { WebLlmService } from '../../../core/offline/webllm.service';
 import { ChatMessage, Goal, GoalUpdate } from '../../../core/models/journey.models';
 
@@ -29,6 +30,7 @@ export class ChatPage implements OnInit, OnDestroy {
   private readonly journeyService = inject(JourneyService);
   private readonly connectivityService = inject(ConnectivityService);
   private readonly offlineCache = inject(OfflineCacheService);
+  private readonly offlineJourneyService = inject(OfflineJourneyService);
   protected readonly webLlmService = inject(WebLlmService);
 
   private readonly learnerId = this.route.snapshot.paramMap.get('learnerId')!;
@@ -177,10 +179,13 @@ export class ChatPage implements OnInit, OnDestroy {
 
   private async sendOffline(text: string): Promise<void> {
     try {
-      const goalTitles = this.goals().map((goal) => goal.title);
-      const reply = await this.webLlmService.generateReply(text, goalTitles);
+      const result = await this.offlineJourneyService.respond(this.learnerId, text, this.goals());
       this.isSending.set(false);
-      this.messages.update((current) => [...current, { role: 'journey', text: reply }]);
+      this.messages.update((current) => [...current, { role: 'journey', text: result.reply }]);
+
+      if (result.goalWritten) {
+        this.goals.update((current) => [result.goalWritten!, ...current]);
+      }
     } catch {
       this.isSending.set(false);
       this.errorMessage.set('JOURNEY could not generate an offline reply just now.');
