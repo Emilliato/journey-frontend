@@ -4,6 +4,17 @@
     <a routerLink="/learners" class="link-button">Back</a>
   </header>
 
+  @if (!isOnlineMode()) {
+    <p class="offline-banner">
+      You're offline
+      @if (webLlmService.isSupported()) {
+        — JOURNEY is replying using an on-device model instead of Claude.
+      } @else {
+        — this device can't run the on-device model, so only your cached goals are shown below.
+      }
+    </p>
+  }
+
   @if (errorMessage() && isStarting() === false && messages().length === 0) {
     <p class="error">{{ errorMessage() }}</p>
   }
@@ -20,7 +31,9 @@
           </div>
         }
         @if (isSending()) {
-          <div class="message journey pending">JOURNEY is thinking…</div>
+          <div class="message journey pending">
+            {{ webLlmService.isLoading() ? (webLlmService.loadProgressText() ?? 'Loading on-device model…') : 'JOURNEY is thinking…' }}
+          </div>
         }
       </div>
 
@@ -34,9 +47,14 @@
           formControlName="message"
           placeholder="Say something to JOURNEY…"
           autocomplete="off"
-          [disabled]="isStarting()"
+          [disabled]="isStarting() || (!isOnlineMode() && !webLlmService.isSupported())"
         />
-        <button type="submit" [disabled]="isStarting() || isSending()">Send</button>
+        <button
+          type="submit"
+          [disabled]="isStarting() || isSending() || (!isOnlineMode() && !webLlmService.isSupported())"
+        >
+          Send
+        </button>
       </form>
     </section>
 
