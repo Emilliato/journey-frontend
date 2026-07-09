@@ -1,0 +1,29 @@
+<div class="page">
+  <header class="page-header">
+    <h1>Your children</h1>
+    <button type="button" class="link-button" (click)="logout()">Sign out</button>
+  </header>
+
+  @if (isLoading()) {
+    <p class="muted">Loading…</p>
+  } @else if (errorMessage()) {
+    <p class="error">{{ errorMessage() }}</p>
+  } @else if (learners().length === 0) {
+    <div class="empty-state">
+      <p>No child profiles yet.</p>
+      <a routerLink="/learners/new" class="primary-button">Add a child</a>
+    </div>
+  } @else {
+    <ul class="learner-list">
+      @for (learner of learners(); track learner.id) {
+        <li class="learner-card">
+          <span class="name">{{ learner.displayName }}</span>
+          @if (!learner.consentActive) {
+            <span class="badge warning">Consent inactive</span>
+          }
+        </li>
+      }
+    </ul>
+    <a routerLink="/learners/new" class="primary-button">Add another child</a>
+  }
+</div>

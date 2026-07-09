@@ -1,0 +1,101 @@
+@mixin page {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+@mixin page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+
+  h1 {
+    margin: 0;
+    font-size: 1.4rem;
+  }
+}
+
+@mixin link-button {
+  background: none;
+  border: none;
+  color: #4338ca;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+@mixin primary-button {
+  display: inline-block;
+  padding: 11px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #4338ca;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover {
+    background: #372aa8;
+  }
+}
+
+@mixin muted {
+  color: #6b7280;
+}
+
+@mixin learner-list {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  .learner-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+
+    .name {
+      font-weight: 600;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 999px;
+
+      &.warning {
+        background: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fde68a;
+      }
+    }
+  }
+}
+
+@mixin empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  background: #fff;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+
+  p {
+    color: #6b7280;
+    margin-bottom: 16px;
+  }
+}

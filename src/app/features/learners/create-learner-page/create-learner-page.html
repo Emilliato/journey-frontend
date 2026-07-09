@@ -1,0 +1,39 @@
+<div class="page">
+  <header class="page-header">
+    <h1>Add a child</h1>
+    <a routerLink="/learners" class="link-button">Cancel</a>
+  </header>
+
+  @if (!isCheckingConnectivity() && !isOnline()) {
+    <p class="offline-banner">
+      You're offline. Creating a child profile needs an internet connection — this can't be done offline.
+    </p>
+  }
+
+  <form class="form-card" [formGroup]="form" (ngSubmit)="submit()">
+    <label for="displayName">Child's name</label>
+    <input id="displayName" type="text" formControlName="displayName" autocomplete="off" />
+    @if (form.controls.displayName.invalid && form.controls.displayName.touched) {
+      <p class="field-error">A name is required.</p>
+    }
+
+    <div class="checkbox-row">
+      <input id="consentGranted" type="checkbox" formControlName="consentGranted" />
+      <label for="consentGranted">
+        I am this child's parent or legal guardian and I consent to LearnBridge storing and using this
+        child's learning data as described in the privacy policy.
+      </label>
+    </div>
+    @if (form.controls.consentGranted.invalid && form.controls.consentGranted.touched) {
+      <p class="field-error">Consent is required to create a child profile.</p>
+    }
+
+    @if (errorMessage()) {
+      <p class="form-error">{{ errorMessage() }}</p>
+    }
+
+    <button type="submit" class="primary-button" [disabled]="isSubmitting() || !isOnline()">
+      {{ isSubmitting() ? 'Saving…' : 'Create profile' }}
+    </button>
+  </form>
+</div>
