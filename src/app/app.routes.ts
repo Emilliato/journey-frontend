@@ -26,5 +26,10 @@ export const routes: Routes = [
         (m) => m.CreateLearnerPage,
       ),
   },
+  {
+    path: 'learners/:learnerId/journey',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/journey/chat-page/chat-page').then((m) => m.ChatPage),
+  },
   { path: '**', redirectTo: 'learners' },
 ];

@@ -20,6 +20,8 @@
           <span class="name">{{ learner.displayName }}</span>
           @if (!learner.consentActive) {
             <span class="badge warning">Consent inactive</span>
+          } @else {
+            <a [routerLink]="['/learners', learner.id, 'journey']" class="talk-link">Talk to JOURNEY</a>
           }
         </li>
       }

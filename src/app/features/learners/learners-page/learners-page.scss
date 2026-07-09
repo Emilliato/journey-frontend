@@ -31,3 +31,10 @@
 .empty-state {
   @include page.empty-state;
 }
+
+.talk-link {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #4338ca;
+  text-decoration: none;
+}
