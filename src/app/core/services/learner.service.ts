@@ -15,4 +15,8 @@ export class LearnerService {
   listLearners(): Observable<LearnerResponse[]> {
     return this.http.get<LearnerResponse[]>(`${environment.apiUrl}/api/learners`);
   }
+
+  getLearner(id: string): Observable<LearnerResponse> {
+    return this.http.get<LearnerResponse>(`${environment.apiUrl}/api/learners/${id}`);
+  }
 }

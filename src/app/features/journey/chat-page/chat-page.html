@@ -1,0 +1,59 @@
+<div class="journey-page">
+  <header class="page-header">
+    <h1>JOURNEY {{ learnerName() ? '— ' + learnerName() : '' }}</h1>
+    <a routerLink="/learners" class="link-button">Back</a>
+  </header>
+
+  @if (errorMessage() && isStarting() === false && messages().length === 0) {
+    <p class="error">{{ errorMessage() }}</p>
+  }
+
+  <div class="layout">
+    <section class="chat-panel">
+      <div class="messages">
+        @if (isStarting()) {
+          <p class="muted">Starting conversation…</p>
+        }
+        @for (message of messages(); track $index) {
+          <div class="message" [class.learner]="message.role === 'learner'" [class.journey]="message.role === 'journey'">
+            {{ message.text }}
+          </div>
+        }
+        @if (isSending()) {
+          <div class="message journey pending">JOURNEY is thinking…</div>
+        }
+      </div>
+
+      @if (errorMessage() && messages().length > 0) {
+        <p class="error inline">{{ errorMessage() }}</p>
+      }
+
+      <form class="composer" [formGroup]="form" (ngSubmit)="send()">
+        <input
+          type="text"
+          formControlName="message"
+          placeholder="Say something to JOURNEY…"
+          autocomplete="off"
+          [disabled]="isStarting()"
+        />
+        <button type="submit" [disabled]="isStarting() || isSending()">Send</button>
+      </form>
+    </section>
+
+    <aside class="goal-panel">
+      <h2>Goals</h2>
+      @if (goals().length === 0) {
+        <p class="muted">No goals yet — they'll show up here as JOURNEY notices them.</p>
+      } @else {
+        <ul>
+          @for (goal of goals(); track goal.id) {
+            <li class="goal-card" [class.completed]="goal.status === 'Completed'" [class.abandoned]="goal.status === 'Abandoned'">
+              <span class="title">{{ goal.title }}</span>
+              <span class="status">{{ goal.status }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </aside>
+  </div>
+</div>
