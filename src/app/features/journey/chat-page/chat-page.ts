@@ -9,6 +9,8 @@ import { OfflineCacheService } from '../../../core/offline/offline-cache.service
 import { OfflineJourneyService } from '../../../core/offline/offline-journey.service';
 import { WebLlmService } from '../../../core/offline/webllm.service';
 import { ChatMessage, Goal, GoalUpdate } from '../../../core/models/journey.models';
+import { OfflinePersonaMemory } from '../../../core/offline/offline-persona';
+import { MarkdownPipe } from '../../../shared/pipes/markdown.pipe';
 
 /**
  * The JOURNEY chat surface. Online/offline mode is decided once, from the
@@ -19,7 +21,7 @@ import { ChatMessage, Goal, GoalUpdate } from '../../../core/models/journey.mode
  */
 @Component({
   selector: 'app-chat-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, MarkdownPipe],
   templateUrl: './chat-page.html',
   styleUrl: './chat-page.scss',
 })
@@ -35,6 +37,12 @@ export class ChatPage implements OnInit, OnDestroy {
 
   private readonly learnerId = this.route.snapshot.paramMap.get('learnerId')!;
   private sessionId: string | null = null;
+
+  // Offline-only: the learner's memory repository (from cache) that the
+  // local persona recalls, and the cached consent flag that gates offline
+  // writes. Unused in online mode, where the server handles both.
+  private offlineMemories: OfflinePersonaMemory[] = [];
+  readonly offlineConsentActive = signal(true);
 
   readonly isOnlineMode = signal(true);
   readonly learnerName = signal<string | null>(null);
@@ -90,6 +98,12 @@ export class ChatPage implements OnInit, OnDestroy {
 
     if (this.isOnlineMode() && this.sessionId) {
       this.sendOnline(text);
+    } else if (!this.offlineConsentActive()) {
+      // Offline consent gate — refuse to chat or record without consent.
+      this.isSending.set(false);
+      this.errorMessage.set(
+        'Parental consent for this learner is not active, so JOURNEY cannot chat or save anything.',
+      );
     } else if (this.webLlmService.isSupported()) {
       void this.sendOffline(text);
     } else {
@@ -117,10 +131,25 @@ export class ChatPage implements OnInit, OnDestroy {
       },
     });
 
+    // Cache the memory repository so the offline persona knows the learner
+    // the same way the online system prompt does.
+    this.journeyService.listMemories(this.learnerId).subscribe({
+      next: (memories) => void this.offlineCache.cacheMemories(this.learnerId, memories),
+      error: () => {
+        /* Non-fatal — offline just falls back to a non-personalised persona. */
+      },
+    });
+
     this.journeyService.startSession(this.learnerId).subscribe({
       next: (session) => {
         this.sessionId = session.sessionId;
         this.isStarting.set(false);
+
+        // JOURNEY opens the conversation — an introduction for a new
+        // learner, a personalised welcome-back for a known one.
+        if (session.greeting) {
+          this.messages.update((current) => [...current, { role: 'journey', text: session.greeting }]);
+        }
       },
       error: (error: HttpErrorResponse) => {
         this.isStarting.set(false);
@@ -134,9 +163,10 @@ export class ChatPage implements OnInit, OnDestroy {
   }
 
   private async initOffline(): Promise<void> {
-    const [profile, cachedGoals] = await Promise.all([
+    const [profile, cachedGoals, cachedMemories] = await Promise.all([
       this.offlineCache.getCachedLearnerProfile(this.learnerId),
       this.offlineCache.getCachedGoals(this.learnerId),
+      this.offlineCache.getCachedMemories(this.learnerId),
     ]);
 
     this.learnerName.set(profile?.displayName ?? null);
@@ -149,13 +179,47 @@ export class ChatPage implements OnInit, OnDestroy {
         updatedAt: goal.updatedAt,
       })),
     );
+
+    // Offline consent gate, mirroring the online session start (which the
+    // server rejects with 422 when consent isn't active). A cache with no
+    // recorded consent is treated as not-granted — fail closed.
+    this.offlineConsentActive.set(profile?.consentActive ?? false);
+
+    // The repository the offline persona recalls from, ordered newest-first
+    // like the online prompt.
+    this.offlineMemories = cachedMemories
+      .slice()
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .map((m) => ({ category: m.category, content: m.content }));
+
     this.isStarting.set(false);
+
+    if (!this.offlineConsentActive()) {
+      this.errorMessage.set(
+        'Parental consent for this learner is not active, so JOURNEY cannot chat or save anything — online or offline.',
+      );
+      return;
+    }
 
     if (!this.webLlmService.isSupported()) {
       this.errorMessage.set(
         "You're offline and this device doesn't support on-device AI, so JOURNEY can't chat right now — your saved goals are still shown below.",
       );
+      return;
     }
+
+    // JOURNEY speaks first offline too — an instant, personalised greeting
+    // built from cache with no model inference, so it appears immediately
+    // even while the local model is still loading.
+    this.messages.update((current) => [
+      ...current,
+      { role: 'journey', text: this.offlineJourneyService.greeting(this.learnerName(), this.offlineMemories) },
+    ]);
+
+    // Kick off the model load now, in the background, so it overlaps with
+    // the learner reading the greeting and typing — the first real reply is
+    // then much faster (the "fast, like online" part of the offline path).
+    this.webLlmService.preload();
   }
 
   private sendOnline(text: string): void {
@@ -179,12 +243,24 @@ export class ChatPage implements OnInit, OnDestroy {
 
   private async sendOffline(text: string): Promise<void> {
     try {
-      const result = await this.offlineJourneyService.respond(this.learnerId, text, this.goals());
+      const result = await this.offlineJourneyService.respond(
+        this.learnerId,
+        text,
+        this.goals(),
+        this.offlineMemories,
+        this.offlineConsentActive(),
+      );
       this.isSending.set(false);
       this.messages.update((current) => [...current, { role: 'journey', text: result.reply }]);
 
       if (result.goalWritten) {
         this.goals.update((current) => [result.goalWritten!, ...current]);
+      }
+
+      if (result.consentBlockedWrite) {
+        this.errorMessage.set(
+          "I couldn't save that — parental consent for this learner isn't active right now.",
+        );
       }
     } catch {
       this.isSending.set(false);

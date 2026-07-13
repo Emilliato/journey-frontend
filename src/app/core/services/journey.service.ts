@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Goal, SendMessageResponse, StartSessionResponse } from '../models/journey.models';
+import { Goal, JourneyMemory, SendMessageResponse, StartSessionResponse } from '../models/journey.models';
 
 @Injectable({ providedIn: 'root' })
 export class JourneyService {
@@ -27,5 +27,9 @@ export class JourneyService {
 
   listGoals(learnerId: string): Observable<Goal[]> {
     return this.http.get<Goal[]>(`${environment.apiUrl}/api/learners/${learnerId}/goals`);
+  }
+
+  listMemories(learnerId: string): Observable<JourneyMemory[]> {
+    return this.http.get<JourneyMemory[]>(`${environment.apiUrl}/api/learners/${learnerId}/memories`);
   }
 }

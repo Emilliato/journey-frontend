@@ -1,13 +1,17 @@
 import { Injectable, signal } from '@angular/core';
 import type { MLCEngine } from '@mlc-ai/web-llm';
-import { OFFLINE_SYSTEM_PROMPT } from './offline-persona';
+import { ContentNote } from './content-pack';
+import { OfflinePersonaMemory, buildOfflineSystemPrompt } from './offline-persona';
 
 /**
- * The real WebLLM prebuilt model id closest to docs/ARCHITECTURE.md's
- * "e.g. Phi-4-mini" suggestion — confirmed against the installed
- * @mlc-ai/web-llm package's own model config rather than guessed.
+ * The local model. Chosen for mobile viability (see docs/ARCHITECTURE.md,
+ * which names Phi-4-mini only as an "e.g."): Llama-3.2-1B needs ~879 MB of
+ * GPU memory and is flagged low-resource-capable in the prebuilt config,
+ * versus ~3438 MB for Phi-4-mini — the difference between "runs on a
+ * mid-range phone" and "flagship-only / OOM". Model id confirmed against
+ * the installed @mlc-ai/web-llm package's own model config, not guessed.
  */
-export const OFFLINE_MODEL_ID = 'Phi-4-mini-instruct-q4f16_1-MLC';
+export const OFFLINE_MODEL_ID = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
 
 /**
  * Runs JOURNEY's offline persona locally via WebLLM/WebGPU. Feature-detect
@@ -32,7 +36,29 @@ export class WebLlmService {
     return typeof navigator !== 'undefined' && 'gpu' in navigator;
   }
 
-  async generateReply(learnerMessage: string, cachedGoalTitles: readonly string[]): Promise<string> {
+  /**
+   * Starts loading the local model in the background without waiting for a
+   * reply. Called when an offline session opens so the (large) model load
+   * overlaps with the learner reading the instant greeting and typing —
+   * the first real reply is then much faster. Safe to call when
+   * unsupported (no-op) and idempotent (shares the single load promise).
+   */
+  preload(): void {
+    if (!this.isSupported() || this.engine) {
+      return;
+    }
+
+    // Swallow errors here — a failed preload just means the first
+    // generateReply retries and surfaces the error then.
+    void this.ensureEngine().catch(() => {});
+  }
+
+  async generateReply(
+    learnerMessage: string,
+    cachedGoalTitles: readonly string[],
+    memories: readonly OfflinePersonaMemory[] = [],
+    referenceNotes: readonly ContentNote[] = [],
+  ): Promise<string> {
     if (!this.isSupported()) {
       throw new Error('WebGPU is not supported on this device.');
     }
@@ -46,7 +72,7 @@ export class WebLlmService {
 
     const completion = await engine.chat.completions.create({
       messages: [
-        { role: 'system', content: `${OFFLINE_SYSTEM_PROMPT}\n\n${goalContext}` },
+        { role: 'system', content: `${buildOfflineSystemPrompt(memories, referenceNotes)}\n\n${goalContext}` },
         { role: 'user', content: learnerMessage },
       ],
     });

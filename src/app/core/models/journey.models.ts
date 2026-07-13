@@ -1,6 +1,8 @@
 export interface StartSessionResponse {
   sessionId: string;
   startedAt: string;
+  /** JOURNEY speaks first — the AI-generated opening message for this session. */
+  greeting: string;
 }
 
 export interface SendMessageRequest {
@@ -26,6 +28,17 @@ export interface Goal {
   title: string;
   description: string | null;
   status: 'Active' | 'Completed' | 'Abandoned';
+  updatedAt: string;
+}
+
+export type JourneyMemoryCategory = 'academic' | 'preference' | 'engagement' | 'goal_related';
+
+export interface JourneyMemory {
+  id: string;
+  conversationSessionId: string | null;
+  category: JourneyMemoryCategory;
+  content: string;
+  createdAt: string;
   updatedAt: string;
 }
 

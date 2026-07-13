@@ -27,7 +27,12 @@
         }
         @for (message of messages(); track $index) {
           <div class="message" [class.learner]="message.role === 'learner'" [class.journey]="message.role === 'journey'">
-            {{ message.text }}
+            @if (message.role === 'journey') {
+              <!-- JOURNEY replies are markdown; sanitized in MarkdownPipe. -->
+              <div class="message-body" [innerHTML]="message.text | markdown"></div>
+            } @else {
+              {{ message.text }}
+            }
           </div>
         }
         @if (isSending()) {
@@ -47,11 +52,11 @@
           formControlName="message"
           placeholder="Say something to JOURNEY…"
           autocomplete="off"
-          [disabled]="isStarting() || (!isOnlineMode() && !webLlmService.isSupported())"
+          [disabled]="isStarting() || (!isOnlineMode() && (!webLlmService.isSupported() || !offlineConsentActive()))"
         />
         <button
           type="submit"
-          [disabled]="isStarting() || isSending() || (!isOnlineMode() && !webLlmService.isSupported())"
+          [disabled]="isStarting() || isSending() || (!isOnlineMode() && (!webLlmService.isSupported() || !offlineConsentActive()))"
         >
           Send
         </button>

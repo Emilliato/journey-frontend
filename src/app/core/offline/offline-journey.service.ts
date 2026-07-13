@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { Goal } from '../models/journey.models';
-import { offlineDb } from './offline-db';
+import { findRelevantNotes } from './content-pack';
+import { OfflinePersonaMemory, buildOfflineGreeting } from './offline-persona';
+import { OfflineJourneyMemory, offlineDb } from './offline-db';
 import { WebLlmService } from './webllm.service';
 
 const GOAL_KEYWORD = /\bgoal\b/i;
@@ -10,6 +12,11 @@ export interface OfflineJourneyResult {
   reply: string;
   goalWritten: Goal | null;
   memoryWritten: boolean;
+  /**
+   * True when JOURNEY would have saved something but consent isn't active,
+   * so the write was skipped. Lets the UI explain why nothing was recorded.
+   */
+  consentBlockedWrite: boolean;
 }
 
 /**
@@ -19,27 +26,62 @@ export interface OfflineJourneyResult {
  * model isn't expected to do reliable tool use. Writes go straight to
  * Dexie flagged pendingSync for SyncManagerService to reconcile once back
  * online; there is no server round-trip here at all.
+ *
+ * Consent: writes are gated on the cached consent flag (constraint 2). This
+ * is a client-side convenience gate — it stops JOURNEY from queueing rows
+ * that the server would reject anyway. The authoritative gate is still
+ * server-side in SyncService, which re-checks consent on every sync batch.
  */
 @Injectable({ providedIn: 'root' })
 export class OfflineJourneyService {
   constructor(private readonly webLlmService: WebLlmService) {}
 
-  async respond(learnerId: string, message: string, cachedGoals: readonly Goal[]): Promise<OfflineJourneyResult> {
+  /**
+   * The instant, personalised opening message for an offline session —
+   * built from cache, no model inference, so it shows immediately.
+   */
+  greeting(learnerName: string | null, memories: readonly OfflinePersonaMemory[]): string {
+    return buildOfflineGreeting(learnerName, memories);
+  }
+
+  async respond(
+    learnerId: string,
+    message: string,
+    cachedGoals: readonly Goal[],
+    memories: readonly OfflinePersonaMemory[] = [],
+    consentActive = true,
+  ): Promise<OfflineJourneyResult> {
+    // Ground the local model in the bundled content pack: pull the notes
+    // most relevant to this message and pass them as reference context.
+    const referenceNotes = findRelevantNotes(message);
+
     const reply = await this.webLlmService.generateReply(
       message,
       cachedGoals.map((goal) => goal.title),
+      memories,
+      referenceNotes,
     );
 
     let goalWritten: Goal | null = null;
     let memoryWritten = false;
+    let consentBlockedWrite = false;
 
-    if (GOAL_KEYWORD.test(message)) {
-      goalWritten = await this.writeGoal(learnerId, message);
-    } else if (MEMORY_KEYWORDS.test(message)) {
-      memoryWritten = await this.writeMemory(learnerId, message);
+    const wantsGoalWrite = GOAL_KEYWORD.test(message);
+    const wantsMemoryWrite = !wantsGoalWrite && MEMORY_KEYWORDS.test(message);
+
+    if (wantsGoalWrite || wantsMemoryWrite) {
+      if (!consentActive) {
+        // Consent gate: never persist a learner-linked row without active
+        // consent — not even to the offline queue.
+        consentBlockedWrite = true;
+      } else if (wantsGoalWrite) {
+        goalWritten = await this.writeGoal(learnerId, message);
+      } else {
+        memoryWritten = await this.writeMemory(learnerId, message);
+      }
     }
 
-    return { reply, goalWritten, memoryWritten };
+    return { reply, goalWritten, memoryWritten, consentBlockedWrite };
   }
 
   private async writeGoal(learnerId: string, message: string): Promise<Goal> {
@@ -62,7 +104,7 @@ export class OfflineJourneyService {
   private async writeMemory(learnerId: string, message: string): Promise<boolean> {
     const now = new Date().toISOString();
 
-    await offlineDb.journeyMemories.put({
+    const memory: OfflineJourneyMemory = {
       id: crypto.randomUUID(),
       learnerId,
       conversationSessionId: null,
@@ -71,7 +113,9 @@ export class OfflineJourneyService {
       createdAt: now,
       updatedAt: now,
       pendingSync: true,
-    });
+    };
+
+    await offlineDb.journeyMemories.put(memory);
 
     return true;
   }

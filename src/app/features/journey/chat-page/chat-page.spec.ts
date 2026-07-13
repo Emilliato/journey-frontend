@@ -10,13 +10,14 @@ import { WebLlmService } from '../../../core/offline/webllm.service';
 
 const LEARNER_ID = 'learner-123';
 
-function configure(options: { online: boolean; webGpuSupported: boolean }) {
+function configure(options: { online: boolean; webGpuSupported: boolean; consentActive?: boolean }) {
   const learnerService = {
     getLearner: vi.fn().mockReturnValue(of({ id: LEARNER_ID, displayName: 'Kiddo', createdAt: '', consentActive: true })),
   };
   const journeyService = {
-    startSession: vi.fn().mockReturnValue(of({ sessionId: 'session-1', startedAt: '' })),
+    startSession: vi.fn().mockReturnValue(of({ sessionId: 'session-1', startedAt: '', greeting: 'Hi, I am JOURNEY! What grade are you in?' })),
     listGoals: vi.fn().mockReturnValue(of([])),
+    listMemories: vi.fn().mockReturnValue(of([])),
     sendMessage: vi.fn(),
     completeSession: vi.fn().mockReturnValue(of(undefined)),
   };
@@ -27,13 +28,18 @@ function configure(options: { online: boolean; webGpuSupported: boolean }) {
   const offlineCache = {
     cacheLearnerProfile: vi.fn().mockResolvedValue(undefined),
     cacheGoals: vi.fn().mockResolvedValue(undefined),
-    getCachedLearnerProfile: vi.fn().mockResolvedValue({ id: LEARNER_ID, displayName: 'Cached Kiddo', cachedAt: '' }),
+    cacheMemories: vi.fn().mockResolvedValue(undefined),
+    getCachedLearnerProfile: vi
+      .fn()
+      .mockResolvedValue({ id: LEARNER_ID, displayName: 'Cached Kiddo', consentActive: options.consentActive ?? true, cachedAt: '' }),
     getCachedGoals: vi.fn().mockResolvedValue([]),
+    getCachedMemories: vi.fn().mockResolvedValue([]),
   };
   const webLlmService = {
     isSupported: () => options.webGpuSupported,
     isLoading: () => false,
     loadProgressText: () => null,
+    preload: vi.fn(),
     generateReply: vi.fn().mockResolvedValue('offline reply'),
   };
 
@@ -67,6 +73,18 @@ describe('ChatPage', () => {
     expect(fixture.componentInstance.isOnlineMode()).toBe(true);
   });
 
+  it('shows JOURNEY\'s greeting as the first chat message when a session starts', () => {
+    configure({ online: true, webGpuSupported: false });
+
+    const fixture = TestBed.createComponent(ChatPage);
+    fixture.detectChanges();
+
+    const messages = fixture.componentInstance.messages();
+    expect(messages).toHaveLength(1);
+    expect(messages[0].role).toBe('journey');
+    expect(messages[0].text).toContain('What grade are you in?');
+  });
+
   it('loads from the offline cache and never starts a backend session when connectivity check fails', () => {
     const { journeyService, offlineCache } = configure({ online: false, webGpuSupported: true });
 
@@ -92,6 +110,42 @@ describe('ChatPage', () => {
 
     expect(webLlmService.generateReply).toHaveBeenCalled();
     expect(journeyService.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('refuses to chat offline and surfaces the consent message when cached consent is not active', async () => {
+    const { journeyService, webLlmService } = configure({
+      online: false,
+      webGpuSupported: true,
+      consentActive: false,
+    });
+
+    const fixture = TestBed.createComponent(ChatPage);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(fixture.componentInstance.offlineConsentActive()).toBe(false);
+    expect(fixture.componentInstance.errorMessage()).toContain('consent');
+
+    fixture.componentInstance.form.setValue({ message: 'I love drawing' });
+    fixture.componentInstance.send();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // No reply generated and nothing queued — the offline consent gate held.
+    expect(webLlmService.generateReply).not.toHaveBeenCalled();
+    expect(journeyService.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('greets the learner offline with an instant, cache-built message when consent is active', async () => {
+    configure({ online: false, webGpuSupported: true, consentActive: true });
+
+    const fixture = TestBed.createComponent(ChatPage);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const messages = fixture.componentInstance.messages();
+    expect(messages).toHaveLength(1);
+    expect(messages[0].role).toBe('journey');
+    expect(messages[0].text).toContain('JOURNEY');
   });
 
   it('refuses to send and surfaces an error when offline and the device does not support WebGPU', async () => {

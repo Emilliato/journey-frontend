@@ -9,6 +9,14 @@ import Dexie, { Table } from 'dexie';
 export interface OfflineLearnerProfile {
   id: string; // learnerId
   displayName: string;
+  /**
+   * Cached from LearnerResponse.consentActive while online. The offline
+   * consent gate (OfflineJourneyService) reads this to decide whether new
+   * offline memories/goals may be written — the authoritative gate is still
+   * server-side in SyncService, this just avoids queueing writes that would
+   * be rejected on sync. Absent (older cache) is treated as not-granted.
+   */
+  consentActive: boolean;
   cachedAt: string;
 }
 
