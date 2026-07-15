@@ -10,7 +10,12 @@ import { WebLlmService } from '../../../core/offline/webllm.service';
 
 const LEARNER_ID = 'learner-123';
 
-function configure(options: { online: boolean; webGpuSupported: boolean; consentActive?: boolean }) {
+function configure(options: {
+  online: boolean;
+  webGpuSupported: boolean;
+  consentActive?: boolean;
+  cachedChat?: { id: string; learnerId: string; role: 'learner' | 'journey'; text: string; createdAt: string }[];
+}) {
   const learnerService = {
     getLearner: vi.fn().mockReturnValue(of({ id: LEARNER_ID, displayName: 'Kiddo', createdAt: '', consentActive: true })),
   };
@@ -34,6 +39,8 @@ function configure(options: { online: boolean; webGpuSupported: boolean; consent
       .mockResolvedValue({ id: LEARNER_ID, displayName: 'Cached Kiddo', consentActive: options.consentActive ?? true, cachedAt: '' }),
     getCachedGoals: vi.fn().mockResolvedValue([]),
     getCachedMemories: vi.fn().mockResolvedValue([]),
+    getCachedChat: vi.fn().mockResolvedValue(options.cachedChat ?? []),
+    appendChatMessage: vi.fn().mockResolvedValue(undefined),
   };
   const webLlmService = {
     isSupported: () => options.webGpuSupported,
@@ -65,22 +72,24 @@ function configure(options: { online: boolean; webGpuSupported: boolean; consent
 }
 
 describe('ChatPage', () => {
-  it('starts an online session and does not touch the offline cache reads when connectivity check succeeds', () => {
+  it('starts an online session and does not touch the offline cache reads when connectivity check succeeds', async () => {
     const { journeyService, offlineCache } = configure({ online: true, webGpuSupported: false });
 
     const fixture = TestBed.createComponent(ChatPage);
     fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(journeyService.startSession).toHaveBeenCalledWith(LEARNER_ID);
     expect(offlineCache.getCachedLearnerProfile).not.toHaveBeenCalled();
     expect(fixture.componentInstance.isOnlineMode()).toBe(true);
   });
 
-  it('shows JOURNEY\'s greeting as the first chat message when a session starts', () => {
+  it("shows JOURNEY's greeting as the first chat message when a session starts", async () => {
     configure({ online: true, webGpuSupported: false });
 
     const fixture = TestBed.createComponent(ChatPage);
     fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     const messages = fixture.componentInstance.messages();
     expect(messages).toHaveLength(1);
@@ -88,16 +97,58 @@ describe('ChatPage', () => {
     expect(messages[0].text).toContain('What grade are you in?');
   });
 
-  it('loads from the offline cache and never starts a backend session when connectivity check fails', () => {
+  it('restores the persisted transcript and suppresses the greeting so the child continues where they left off', async () => {
+    const { offlineCache } = configure({
+      online: true,
+      webGpuSupported: false,
+      cachedChat: [
+        { id: 'm1', learnerId: LEARNER_ID, role: 'journey', text: 'Hi again!', createdAt: '2026-07-14T10:00:00Z' },
+        { id: 'm2', learnerId: LEARNER_ID, role: 'learner', text: 'Fractions please', createdAt: '2026-07-14T10:01:00Z' },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(ChatPage);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const messages = fixture.componentInstance.messages();
+    expect(offlineCache.getCachedChat).toHaveBeenCalledWith(LEARNER_ID);
+    expect(messages).toHaveLength(2);
+    expect(messages[1].text).toBe('Fractions please');
+  });
+
+  it('loads from the offline cache and never starts a backend session when connectivity check fails', async () => {
     const { journeyService, offlineCache } = configure({ online: false, webGpuSupported: true });
 
     const fixture = TestBed.createComponent(ChatPage);
     fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(journeyService.startSession).not.toHaveBeenCalled();
     expect(offlineCache.getCachedLearnerProfile).toHaveBeenCalledWith(LEARNER_ID);
     expect(offlineCache.getCachedGoals).toHaveBeenCalledWith(LEARNER_ID);
     expect(fixture.componentInstance.isOnlineMode()).toBe(false);
+  });
+
+  it('passes prior turns as history when replying offline', async () => {
+    const { webLlmService } = configure({
+      online: false,
+      webGpuSupported: true,
+      cachedChat: [
+        { id: 'm1', learnerId: LEARNER_ID, role: 'journey', text: 'Hi again!', createdAt: '2026-07-14T10:00:00Z' },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(ChatPage);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    fixture.componentInstance.form.setValue({ message: 'What is a fraction?' });
+    fixture.componentInstance.send();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const history = webLlmService.generateReply.mock.calls[0][4];
+    expect(history).toEqual([{ role: 'assistant', content: 'Hi again!' }]);
   });
 
   it('routes send() to the local WebLLM model when offline and the device supports it', async () => {

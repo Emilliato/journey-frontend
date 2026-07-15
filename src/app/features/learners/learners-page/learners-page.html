@@ -1,8 +1,17 @@
 <div class="page">
   <header class="page-header">
-    <h1>Your children</h1>
-    <button type="button" class="link-button" (click)="logout()">Sign out</button>
+    <h1>Who's learning today?</h1>
+    @if (!isOfflineList()) {
+      <button type="button" class="link-button" (click)="logout()">Sign out</button>
+    }
   </header>
+
+  @if (isOfflineList()) {
+    <p class="offline-banner">
+      You're offline — showing the profiles saved on this device. Chats work offline and sync when
+      you're back online. (Sign-out is disabled offline so this device can keep working.)
+    </p>
+  }
 
   @if (isLoading()) {
     <p class="muted">Loading…</p>
@@ -26,6 +35,8 @@
         </li>
       }
     </ul>
-    <a routerLink="/learners/new" class="primary-button">Add another child</a>
+    @if (!isOfflineList()) {
+      <a routerLink="/learners/new" class="primary-button">Add another child</a>
+    }
   }
 </div>

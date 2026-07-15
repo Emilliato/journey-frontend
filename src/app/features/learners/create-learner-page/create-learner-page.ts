@@ -25,6 +25,10 @@ export class CreateLearnerPage implements OnInit, OnDestroy {
 
   readonly form = this.fb.group({
     displayName: ['', [Validators.required]],
+    // The child's own sign-in (Learner role) — chosen by the parent here.
+    // Password length mirrors the server's Identity policy (min 8).
+    username: ['', [Validators.required, Validators.minLength(3)]],
+    password: ['', [Validators.required, Validators.minLength(8)]],
     consentGranted: [false, [Validators.requiredTrue]],
   });
 
@@ -67,10 +71,15 @@ export class CreateLearnerPage implements OnInit, OnDestroy {
         return;
       }
 
-      const { displayName, consentGranted } = this.form.getRawValue();
+      const { displayName, username, password, consentGranted } = this.form.getRawValue();
 
       this.learnerService
-        .createLearner({ displayName: displayName!, consentGranted: consentGranted! })
+        .createLearner({
+          displayName: displayName!,
+          consentGranted: consentGranted!,
+          username: username!,
+          password: password!,
+        })
         .subscribe({
           next: () => {
             this.isSubmitting.set(false);

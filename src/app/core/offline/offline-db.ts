@@ -41,10 +41,43 @@ export interface OfflineJourneyMemory {
   pendingSync: boolean;
 }
 
+/**
+ * One chat bubble, persisted so a learner always continues from where
+ * they left off — across page reloads, connectivity changes, and app
+ * restarts. Chat text is conversation content, not a learner-linked
+ * *server* table; it never syncs to the backend (goals/memories extracted
+ * from it do, via their own pendingSync rows).
+ */
+export interface OfflineChatMessage {
+  id: string;
+  learnerId: string;
+  role: 'learner' | 'journey';
+  text: string;
+  createdAt: string;
+}
+
+/**
+ * A locally-verifiable login for offline continuation — CLAUDE.md
+ * constraint 1 as amended 2026-07-15. Stores a PBKDF2 hash (never the
+ * password) plus the last AuthResponse from a successful *online* login;
+ * offline sign-in verifies against the hash and restores that session.
+ */
+export interface OfflineLogin {
+  /** Lower-cased email (parent) or username (learner). */
+  identifier: string;
+  saltB64: string;
+  hashB64: string;
+  /** Serialized AuthResponse from the last successful online login. */
+  sessionJson: string;
+  updatedAt: string;
+}
+
 export class LearnBridgeOfflineDb extends Dexie {
   learnerProfiles!: Table<OfflineLearnerProfile, string>;
   goals!: Table<OfflineGoal, string>;
   journeyMemories!: Table<OfflineJourneyMemory, string>;
+  chatMessages!: Table<OfflineChatMessage, string>;
+  offlineLogins!: Table<OfflineLogin, string>;
 
   constructor() {
     super('LearnBridgeOffline');
@@ -53,6 +86,14 @@ export class LearnBridgeOfflineDb extends Dexie {
       learnerProfiles: 'id',
       goals: 'id, learnerId, pendingSync',
       journeyMemories: 'id, learnerId, pendingSync',
+    });
+
+    this.version(2).stores({
+      learnerProfiles: 'id',
+      goals: 'id, learnerId, pendingSync',
+      journeyMemories: 'id, learnerId, pendingSync',
+      chatMessages: 'id, learnerId, createdAt',
+      offlineLogins: 'identifier',
     });
   }
 }

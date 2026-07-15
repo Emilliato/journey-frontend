@@ -3,7 +3,7 @@ import { Goal } from '../models/journey.models';
 import { findRelevantNotes } from './content-pack';
 import { OfflinePersonaMemory, buildOfflineGreeting } from './offline-persona';
 import { OfflineJourneyMemory, offlineDb } from './offline-db';
-import { WebLlmService } from './webllm.service';
+import { OfflineChatTurn, WebLlmService } from './webllm.service';
 
 const GOAL_KEYWORD = /\bgoal\b/i;
 const MEMORY_KEYWORDS = /\b(like|love|enjoy|favorite|favourite)\b/i;
@@ -50,6 +50,7 @@ export class OfflineJourneyService {
     cachedGoals: readonly Goal[],
     memories: readonly OfflinePersonaMemory[] = [],
     consentActive = true,
+    history: readonly OfflineChatTurn[] = [],
   ): Promise<OfflineJourneyResult> {
     // Ground the local model in the bundled content pack: pull the notes
     // most relevant to this message and pass them as reference context.
@@ -60,6 +61,7 @@ export class OfflineJourneyService {
       cachedGoals.map((goal) => goal.title),
       memories,
       referenceNotes,
+      history,
     );
 
     let goalWritten: Goal | null = null;

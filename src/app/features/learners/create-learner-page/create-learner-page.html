@@ -17,6 +17,18 @@
       <p class="field-error">A name is required.</p>
     }
 
+    <label for="username">Child's username</label>
+    <input id="username" type="text" formControlName="username" autocomplete="off" />
+    @if (form.controls.username.invalid && form.controls.username.touched) {
+      <p class="field-error">A username of at least 3 characters is required — the child signs in with it.</p>
+    }
+
+    <label for="password">Child's password</label>
+    <input id="password" type="password" formControlName="password" autocomplete="new-password" />
+    @if (form.controls.password.invalid && form.controls.password.touched) {
+      <p class="field-error">A password of at least 8 characters is required.</p>
+    }
+
     <div class="checkbox-row">
       <input id="consentGranted" type="checkbox" formControlName="consentGranted" />
       <label for="consentGranted">

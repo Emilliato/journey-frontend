@@ -30,6 +30,22 @@ interface WebGpuLike {
 }
 
 /**
+ * One prior conversation turn, in the local model's own chat format —
+ * lets a chat that started online (with Claude) continue offline with
+ * full context when connectivity drops mid-conversation.
+ */
+export interface OfflineChatTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+/**
+ * The small local model gets a bounded window of prior turns: enough for
+ * continuity, small enough to keep prompts fast on a phone GPU.
+ */
+const MAX_HISTORY_TURNS = 12;
+
+/**
  * Runs JOURNEY's offline persona locally via WebLLM/WebGPU. Feature-detect
  * with `isSupported` before calling anything else — devices without WebGPU
  * (most headless/CI browsers included) fall back to cached-content-only
@@ -112,6 +128,7 @@ export class WebLlmService {
     cachedGoalTitles: readonly string[],
     memories: readonly OfflinePersonaMemory[] = [],
     referenceNotes: readonly ContentNote[] = [],
+    history: readonly OfflineChatTurn[] = [],
   ): Promise<string> {
     if (!this.isSupported()) {
       throw new Error('WebGPU is not supported on this device.');
@@ -127,6 +144,10 @@ export class WebLlmService {
     const completion = await engine.chat.completions.create({
       messages: [
         { role: 'system', content: `${buildOfflineSystemPrompt(memories, referenceNotes)}\n\n${goalContext}` },
+        // Prior turns (including ones Claude answered before the
+        // connection dropped) so the local model continues the same
+        // conversation instead of starting cold.
+        ...history.slice(-MAX_HISTORY_TURNS).map((turn) => ({ role: turn.role, content: turn.content })),
         { role: 'user', content: learnerMessage },
       ],
     });
