@@ -217,6 +217,43 @@
   }
 }
 
+.offline-readiness {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+
+  .readiness-button {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #c7d2fe;
+    border-radius: 8px;
+    background: #eef2ff;
+    color: #4338ca;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.7;
+      cursor: progress;
+    }
+  }
+
+  .readiness-result {
+    margin: 10px 0 0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+
+    &.ok {
+      color: #15803d;
+    }
+
+    &.failed {
+      color: #b91c1c;
+    }
+  }
+}
+
 .goal-panel {
   background: #fff;
   border: 1px solid #e5e7eb;

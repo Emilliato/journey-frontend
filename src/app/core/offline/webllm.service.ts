@@ -55,6 +55,16 @@ export class WebLlmService {
    */
   readonly lastError = signal<string | null>(null);
 
+  /**
+   * What the GPU adapter probe found. 'f16' runs the smaller q4f16_1
+   * model; 'no-f16' runs the q4f32_1 fallback; 'unavailable' means no
+   * usable adapter. 'unknown' until a load or readiness check has probed.
+   */
+  readonly gpuStatus = signal<'unknown' | 'unavailable' | 'f16' | 'no-f16'>('unknown');
+
+  /** True once the engine is loaded — offline replies will work. */
+  readonly isReady = signal(false);
+
   private static detectWebGpuSupport(): boolean {
     return typeof navigator !== 'undefined' && 'gpu' in navigator;
   }
@@ -74,6 +84,27 @@ export class WebLlmService {
     // Swallow errors here — a failed preload just means the first
     // generateReply retries and surfaces the error then.
     void this.ensureEngine().catch(() => {});
+  }
+
+  /**
+   * Explicit readiness check for the "is offline mode going to work?"
+   * button: probes the GPU and loads the model (from cache when already
+   * downloaded). Resolves true when offline replies will work; on false,
+   * `gpuStatus` and `lastError` say why.
+   */
+  async checkReadiness(): Promise<boolean> {
+    if (!this.isSupported()) {
+      this.gpuStatus.set('unavailable');
+      this.lastError.set('This browser does not expose WebGPU.');
+      return false;
+    }
+
+    try {
+      await this.ensureEngine();
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async generateReply(
@@ -116,6 +147,7 @@ export class WebLlmService {
         .then((engine) => {
           this.engine = engine;
           this.isLoading.set(false);
+          this.isReady.set(true);
           return engine;
         })
         .catch((error: unknown) => {
@@ -137,10 +169,14 @@ export class WebLlmService {
     const adapter = gpu ? await gpu.requestAdapter() : null;
 
     if (!adapter) {
+      this.gpuStatus.set('unavailable');
       throw new Error('WebGPU reports no usable GPU adapter on this device.');
     }
 
-    const modelId = adapter.features.has('shader-f16') ? OFFLINE_MODEL_ID : OFFLINE_MODEL_ID_F32;
+    const hasF16 = adapter.features.has('shader-f16');
+    this.gpuStatus.set(hasF16 ? 'f16' : 'no-f16');
+
+    const modelId = hasF16 ? OFFLINE_MODEL_ID : OFFLINE_MODEL_ID_F32;
 
     const { CreateMLCEngine } = await import('@mlc-ai/web-llm');
 
