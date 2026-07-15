@@ -7,9 +7,11 @@ import { AuthResponse, LoginRequest, RegisterRequest } from '../models/auth.mode
 const STORAGE_KEY = 'learnbridge.auth';
 
 /**
- * Parent auth only — see CLAUDE.md constraint 1. There is no learner login
- * and no offline path for either register or login; every call here hits
- * the API directly with no local queueing.
+ * Parent and learner auth. Register is parent-only; login resolves either
+ * a parent's email or a learner's username, and the response's role drives
+ * routing. Online logins also record a locally-verifiable credential so
+ * the same account can sign back in offline on this device — see
+ * OfflineAuthService and CLAUDE.md constraint 1 (amended 2026-07-15).
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -22,7 +24,17 @@ export class AuthService {
     return session !== null && new Date(session.expiresAt).getTime() > Date.now();
   });
 
+  readonly role = computed(() => this.session()?.role ?? null);
+
   constructor(private readonly http: HttpClient) {}
+
+  /**
+   * Adopts a session restored by an offline login (already verified by
+   * OfflineAuthService) — same effect as a successful online login.
+   */
+  adoptSession(response: AuthResponse): void {
+    this.setSession(response);
+  }
 
   register(request: RegisterRequest): Observable<AuthResponse> {
     return this.http

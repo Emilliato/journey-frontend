@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { LearnerService } from '../../../core/services/learner.service';
@@ -13,11 +13,12 @@ import { OfflinePersonaMemory } from '../../../core/offline/offline-persona';
 import { MarkdownPipe } from '../../../shared/pipes/markdown.pipe';
 
 /**
- * The JOURNEY chat surface. Online/offline mode is decided once, from the
- * real connectivity signal at page load (see ConnectivityService) — not
- * re-evaluated mid-conversation, so a session's history never mixes the
- * Claude Proxy and the local WebLLM model. Reconnect mid-session is Phase
- * 5's Sync Manager territory, not this page's job.
+ * The JOURNEY chat surface. Online/offline mode is decided from the real
+ * connectivity signal at page load AND re-evaluated live mid-conversation:
+ * losing the connection hands the running chat (with its history) to the
+ * on-device model; reconnecting silently starts a fresh backend session and
+ * lets SyncManagerService push queued offline writes. The transcript is
+ * persisted per learner, so the child always continues where they left off.
  */
 @Component({
   selector: 'app-chat-page',
@@ -37,6 +38,14 @@ export class ChatPage implements OnInit, OnDestroy {
 
   private readonly learnerId = this.route.snapshot.paramMap.get('learnerId')!;
   private sessionId: string | null = null;
+
+  /**
+   * The mid-chat connectivity watcher only takes over after the initial
+   * one-shot check has decided the starting mode — before that, the
+   * continuously-polled signal may still hold its navigator.onLine-based
+   * initial value.
+   */
+  private initialCheckDone = false;
 
   // Offline-only: the learner's memory repository (from cache) that the
   // local persona recalls, and the cached consent flag that gates offline
@@ -61,21 +70,28 @@ export class ChatPage implements OnInit, OnDestroy {
     message: ['', [Validators.required]],
   });
 
-  ngOnInit(): void {
-    // A one-shot real check here, not the continuously-updated isOnline
-    // signal — on a fresh page load the signal's first health-check poll
-    // hasn't resolved yet, so reading it synchronously would just be
-    // reading its navigator.onLine-based initial value, the exact thing
-    // this service exists to not rely on.
-    this.connectivityService.checkOnline().subscribe((online) => {
-      this.isOnlineMode.set(online);
+  constructor() {
+    // Live mid-chat switching. When the connection drops, the running
+    // conversation is handed to the on-device model (with its history —
+    // see sendOffline); when it returns, a fresh backend session resumes
+    // the chat and the sync manager pushes queued writes.
+    effect(() => {
+      const online = this.connectivityService.isOnline();
+
+      if (!this.initialCheckDone || online === this.isOnlineMode()) {
+        return;
+      }
 
       if (online) {
-        this.initOnline();
+        this.resumeOnline();
       } else {
-        void this.initOffline();
+        void this.switchToOffline();
       }
     });
+  }
+
+  ngOnInit(): void {
+    void this.init();
   }
 
   ngOnDestroy(): void {
@@ -83,6 +99,32 @@ export class ChatPage implements OnInit, OnDestroy {
       // Best-effort — the user is navigating away regardless.
       this.journeyService.completeSession(this.sessionId).subscribe({ error: () => {} });
     }
+  }
+
+  private async init(): Promise<void> {
+    // Continue where the child left off: the persisted transcript renders
+    // before we even know whether we're online.
+    const cachedChat = await this.offlineCache.getCachedChat(this.learnerId);
+
+    if (cachedChat.length > 0) {
+      this.messages.set(cachedChat.map((m) => ({ role: m.role, text: m.text })));
+    }
+
+    // A one-shot real check here, not the continuously-updated isOnline
+    // signal — on a fresh page load the signal's first health-check poll
+    // hasn't resolved yet, so reading it synchronously would just be
+    // reading its navigator.onLine-based initial value, the exact thing
+    // this service exists to not rely on.
+    this.connectivityService.checkOnline().subscribe((online) => {
+      this.isOnlineMode.set(online);
+      this.initialCheckDone = true;
+
+      if (online) {
+        this.initOnline();
+      } else {
+        void this.initOffline();
+      }
+    });
   }
 
   send(): void {
@@ -96,7 +138,7 @@ export class ChatPage implements OnInit, OnDestroy {
       return;
     }
 
-    this.messages.update((current) => [...current, { role: 'learner', text }]);
+    this.appendMessage('learner', text);
     this.form.reset();
     this.isSending.set(true);
     this.errorMessage.set(null);
@@ -147,14 +189,15 @@ export class ChatPage implements OnInit, OnDestroy {
     }
   }
 
+  /** Appends a bubble to the visible chat AND the persisted transcript. */
+  private appendMessage(role: 'learner' | 'journey', text: string): void {
+    this.messages.update((current) => [...current, { role, text }]);
+    void this.offlineCache.appendChatMessage(this.learnerId, role, text);
+  }
+
   private initOnline(): void {
-    // Warm the on-device model cache while we still have connectivity.
-    // preload() was previously only called on the *offline* path — but a
-    // device that has never cached the model can't download ~880 MB of
-    // shards once it's actually offline, so first-ever offline use always
-    // failed. Downloading during an online session means offline mode
-    // starts from cache. Idempotent and background; no-op if unsupported
-    // or already loaded.
+    // Model preload also runs at app start (App component); repeating it
+    // here is a free no-op that covers deep links straight into a chat.
     this.webLlmService.preload();
 
     this.learnerService.getLearner(this.learnerId).subscribe({
@@ -189,10 +232,11 @@ export class ChatPage implements OnInit, OnDestroy {
         this.sessionId = session.sessionId;
         this.isStarting.set(false);
 
-        // JOURNEY opens the conversation — an introduction for a new
-        // learner, a personalised welcome-back for a known one.
-        if (session.greeting) {
-          this.messages.update((current) => [...current, { role: 'journey', text: session.greeting }]);
+        // JOURNEY opens the conversation — but only when there's no
+        // restored transcript; a returning learner continues where they
+        // left off instead of being re-greeted every visit.
+        if (session.greeting && this.messages().length === 0) {
+          this.appendMessage('journey', session.greeting);
         }
       },
       error: (error: HttpErrorResponse) => {
@@ -207,13 +251,53 @@ export class ChatPage implements OnInit, OnDestroy {
   }
 
   private async initOffline(): Promise<void> {
+    await this.loadOfflineContext();
+
+    this.isStarting.set(false);
+
+    if (!this.offlineConsentActive()) {
+      this.errorMessage.set(
+        'Parental consent for this learner is not active, so JOURNEY cannot chat or save anything — online or offline.',
+      );
+      return;
+    }
+
+    if (!this.webLlmService.isSupported()) {
+      this.errorMessage.set(
+        "You're offline and this device doesn't support on-device AI, so JOURNEY can't chat right now — your saved goals are still shown below.",
+      );
+      return;
+    }
+
+    // JOURNEY speaks first offline too — an instant, personalised greeting
+    // built from cache with no model inference — but only for a fresh
+    // conversation; a restored transcript continues untouched.
+    if (this.messages().length === 0) {
+      this.appendMessage(
+        'journey',
+        this.offlineJourneyService.greeting(this.learnerName(), this.offlineMemories),
+      );
+    }
+
+    // Kick off the model load now, in the background, so it overlaps with
+    // the learner reading the greeting and typing — the first real reply is
+    // then much faster (the "fast, like online" part of the offline path).
+    this.webLlmService.preload();
+  }
+
+  /**
+   * Loads the cached learner context the offline persona needs (profile,
+   * consent, goals, memories). Shared by the offline page init and the
+   * mid-chat online→offline switch.
+   */
+  private async loadOfflineContext(): Promise<void> {
     const [profile, cachedGoals, cachedMemories] = await Promise.all([
       this.offlineCache.getCachedLearnerProfile(this.learnerId),
       this.offlineCache.getCachedGoals(this.learnerId),
       this.offlineCache.getCachedMemories(this.learnerId),
     ]);
 
-    this.learnerName.set(profile?.displayName ?? null);
+    this.learnerName.set(profile?.displayName ?? this.learnerName());
     this.goals.set(
       cachedGoals.map((goal) => ({
         id: goal.id,
@@ -235,42 +319,48 @@ export class ChatPage implements OnInit, OnDestroy {
       .slice()
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .map((m) => ({ category: m.category, content: m.content }));
+  }
 
-    this.isStarting.set(false);
+  /**
+   * Connection lost mid-chat: hand the running conversation to the local
+   * model. The transcript stays on screen and is passed as history on the
+   * next send, so JOURNEY continues the same conversation.
+   */
+  private async switchToOffline(): Promise<void> {
+    this.isOnlineMode.set(false);
+    // The backend session died with the connection; a new one is started
+    // on reconnect (resumeOnline).
+    this.sessionId = null;
 
-    if (!this.offlineConsentActive()) {
-      this.errorMessage.set(
-        'Parental consent for this learner is not active, so JOURNEY cannot chat or save anything — online or offline.',
-      );
-      return;
-    }
-
-    if (!this.webLlmService.isSupported()) {
-      this.errorMessage.set(
-        "You're offline and this device doesn't support on-device AI, so JOURNEY can't chat right now — your saved goals are still shown below.",
-      );
-      return;
-    }
-
-    // JOURNEY speaks first offline too — an instant, personalised greeting
-    // built from cache with no model inference, so it appears immediately
-    // even while the local model is still loading.
-    this.messages.update((current) => [
-      ...current,
-      { role: 'journey', text: this.offlineJourneyService.greeting(this.learnerName(), this.offlineMemories) },
-    ]);
-
-    // Kick off the model load now, in the background, so it overlaps with
-    // the learner reading the greeting and typing — the first real reply is
-    // then much faster (the "fast, like online" part of the offline path).
+    await this.loadOfflineContext();
     this.webLlmService.preload();
+  }
+
+  /**
+   * Connection restored mid-chat: silently start a fresh backend session
+   * (greeting suppressed — the transcript already exists) and continue
+   * with Claude. Queued offline writes are pushed by SyncManagerService,
+   * which watches the same connectivity signal.
+   */
+  private resumeOnline(): void {
+    this.isOnlineMode.set(true);
+    this.errorMessage.set(null);
+
+    this.journeyService.startSession(this.learnerId).subscribe({
+      next: (session) => {
+        this.sessionId = session.sessionId;
+      },
+      error: () => {
+        /* Stay usable — the next send will surface an error if it persists. */
+      },
+    });
   }
 
   private sendOnline(text: string): void {
     this.journeyService.sendMessage(this.sessionId!, text).subscribe({
       next: (response) => {
         this.isSending.set(false);
-        this.messages.update((current) => [...current, { role: 'journey', text: response.reply }]);
+        this.appendMessage('journey', response.reply);
 
         if (response.goalUpdates.length > 0) {
           const merged = this.mergeGoalUpdates(this.goals(), response.goalUpdates);
@@ -287,15 +377,26 @@ export class ChatPage implements OnInit, OnDestroy {
 
   private async sendOffline(text: string): Promise<void> {
     try {
+      // Everything before the just-typed message (which send() already
+      // appended) is prior context — including turns Claude answered
+      // before the connection dropped.
+      const history = this.messages()
+        .slice(0, -1)
+        .map((m) => ({
+          role: m.role === 'learner' ? ('user' as const) : ('assistant' as const),
+          content: m.text,
+        }));
+
       const result = await this.offlineJourneyService.respond(
         this.learnerId,
         text,
         this.goals(),
         this.offlineMemories,
         this.offlineConsentActive(),
+        history,
       );
       this.isSending.set(false);
-      this.messages.update((current) => [...current, { role: 'journey', text: result.reply }]);
+      this.appendMessage('journey', result.reply);
 
       if (result.goalWritten) {
         this.goals.update((current) => [result.goalWritten!, ...current]);

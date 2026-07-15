@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Goal, JourneyMemory } from '../models/journey.models';
 import { LearnerResponse } from '../models/learner.models';
-import { OfflineGoal, OfflineJourneyMemory, offlineDb } from './offline-db';
+import { OfflineChatMessage, OfflineGoal, OfflineJourneyMemory, offlineDb } from './offline-db';
 
 /**
  * Populated while online so there's something real for the offline WebLLM
@@ -21,6 +21,35 @@ export class OfflineCacheService {
 
   async getCachedLearnerProfile(learnerId: string) {
     return offlineDb.learnerProfiles.get(learnerId);
+  }
+
+  /** Every cached child profile — the offline profile picker's data source. */
+  async getAllCachedLearnerProfiles() {
+    return offlineDb.learnerProfiles.orderBy('id').toArray();
+  }
+
+  /**
+   * Appends one chat bubble to the learner's persisted transcript, so the
+   * conversation survives reloads and connectivity changes ("continue
+   * from where the child left off").
+   */
+  async appendChatMessage(learnerId: string, role: 'learner' | 'journey', text: string): Promise<void> {
+    const message: OfflineChatMessage = {
+      id: crypto.randomUUID(),
+      learnerId,
+      role,
+      text,
+      createdAt: new Date().toISOString(),
+    };
+
+    await offlineDb.chatMessages.put(message);
+  }
+
+  /** The learner's persisted transcript, oldest first, capped to the last `limit` bubbles. */
+  async getCachedChat(learnerId: string, limit = 200): Promise<OfflineChatMessage[]> {
+    const all = await offlineDb.chatMessages.where('learnerId').equals(learnerId).sortBy('createdAt');
+
+    return all.slice(-limit);
   }
 
   async cacheGoals(learnerId: string, goals: readonly Goal[]): Promise<void> {

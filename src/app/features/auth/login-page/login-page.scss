@@ -7,3 +7,9 @@
 .auth-card {
   @include auth.auth-card;
 }
+
+.offline-note {
+  color: #15803d;
+  font-size: 0.85rem;
+  margin: 8px 0 0;
+}
