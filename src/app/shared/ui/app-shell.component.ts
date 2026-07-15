@@ -1,11 +1,14 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { ConnectionPillComponent } from './connection-pill.component';
+import { AuthService } from '../../core/services/auth.service';
+import { ConnectivityService } from '../../core/services/connectivity.service';
 
 /**
- * The learner/parent chrome: brand header with a connection pill and a
- * floating bottom nav. `variant` swaps the body font (rounded display for
- * learners, clean sans for parents) and the nav items.
+ * The learner/parent chrome: brand header with a connection pill, a
+ * sign-out control, and a floating bottom nav. `variant` swaps the body
+ * font (rounded display for learners, clean sans for parents) and the nav
+ * items.
  */
 @Component({
   selector: 'lb-app-shell',
@@ -25,6 +28,18 @@ import { ConnectionPillComponent } from './connection-pill.component';
         <div class="shell-title">{{ title() }}</div>
         <div class="shell-right">
           <lb-connection-pill />
+          <!-- Sign-out lives on every shell page so both roles can always
+               leave. Hidden offline: signing out clears the cached session
+               this device needs to keep working without connectivity. -->
+          @if (connectivity.isOnline()) {
+            <button type="button" class="sign-out" (click)="logout()" aria-label="Sign out" title="Sign out">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <path d="M16 17l5-5-5-5" />
+                <path d="M21 12H9" />
+              </svg>
+            </button>
+          }
         </div>
       </header>
 
@@ -51,6 +66,10 @@ import { ConnectionPillComponent } from './connection-pill.component';
   styleUrl: './app-shell.component.scss',
 })
 export class AppShellComponent {
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+  protected readonly connectivity = inject(ConnectivityService);
+
   readonly title = input('');
   readonly variant = input<'learner' | 'parent'>('learner');
   /** Optional override; defaults to the learner nav set. */
@@ -59,4 +78,9 @@ export class AppShellComponent {
     { path: '/avatar', label: 'Avatar', icon: '🎨' },
     { path: '/parent', label: 'Parents', icon: '👪' },
   ]);
+
+  logout(): void {
+    this.authService.logout();
+    void this.router.navigateByUrl('/login');
+  }
 }
