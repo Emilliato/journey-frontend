@@ -169,6 +169,42 @@ describe('ChatPage', () => {
     expect(history).toEqual([{ role: 'assistant', content: 'Hi again!' }]);
   });
 
+  it('streams the offline reply into the chat as tokens arrive', async () => {
+    const { webLlmService } = configure({ online: false, webGpuSupported: true });
+
+    // The offline model emits deltas via the onToken callback (arg 5) and
+    // returns the full reply — the chat bubble should fill in from them.
+    webLlmService.generateReply = vi
+      .fn()
+      .mockImplementation(
+        async (
+          _msg: string,
+          _goals: string[],
+          _mem: unknown[],
+          _notes: unknown[],
+          _history: unknown[],
+          onToken?: (delta: string) => void,
+        ) => {
+          onToken?.('Nice ');
+          onToken?.('question!');
+          return 'Nice question!';
+        },
+      );
+
+    const fixture = TestBed.createComponent(ChatPage);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    fixture.componentInstance.form.setValue({ message: 'what is a fraction?' });
+    fixture.componentInstance.send();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const messages = fixture.componentInstance.messages();
+    const last = messages[messages.length - 1];
+    expect(last.role).toBe('journey');
+    expect(last.text).toBe('Nice question!');
+  });
+
   it('routes send() to the local WebLLM model when offline and the device supports it', async () => {
     const { journeyService, webLlmService } = configure({ online: false, webGpuSupported: true });
 

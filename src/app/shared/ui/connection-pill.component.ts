@@ -22,8 +22,17 @@ import { ConnectivityService } from '../../core/services/connectivity.service';
           <path d="M8.5 16.5a5 5 0 0 1 7 0" />
           <circle cx="12" cy="20" r="1" fill="currentColor" />
         </svg>
-        Offline — JOURNEY on device
+        Offline<span class="pill-suffix"> — JOURNEY on device</span>
       </span>
+    }
+  `,
+  // The long offline descriptor is dropped on narrow screens so the header
+  // never overflows — the icon + "Offline" already reads clearly.
+  styles: `
+    @media (max-width: 560px) {
+      .pill-suffix {
+        display: none;
+      }
     }
   `,
 })
