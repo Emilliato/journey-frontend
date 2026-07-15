@@ -113,6 +113,15 @@ export class ChatPage implements OnInit, OnDestroy {
   }
 
   private initOnline(): void {
+    // Warm the on-device model cache while we still have connectivity.
+    // preload() was previously only called on the *offline* path — but a
+    // device that has never cached the model can't download ~880 MB of
+    // shards once it's actually offline, so first-ever offline use always
+    // failed. Downloading during an online session means offline mode
+    // starts from cache. Idempotent and background; no-op if unsupported
+    // or already loaded.
+    this.webLlmService.preload();
+
     this.learnerService.getLearner(this.learnerId).subscribe({
       next: (learner) => {
         this.learnerName.set(learner.displayName);
@@ -262,9 +271,17 @@ export class ChatPage implements OnInit, OnDestroy {
           "I couldn't save that — parental consent for this learner isn't active right now.",
         );
       }
-    } catch {
+    } catch (error) {
       this.isSending.set(false);
-      this.errorMessage.set('JOURNEY could not generate an offline reply just now.');
+      // Include the underlying reason: offline failures happen on devices
+      // (phones) where there's no console to inspect, and "could not
+      // generate" alone is undiagnosable remotely.
+      const detail =
+        this.webLlmService.lastError() ??
+        (error instanceof Error ? error.message : String(error));
+      this.errorMessage.set(
+        `JOURNEY could not generate an offline reply just now.${detail ? ` (${detail})` : ''}`,
+      );
     }
   }
 
