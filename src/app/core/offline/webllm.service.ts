@@ -14,6 +14,22 @@ import { OfflinePersonaMemory, buildOfflineSystemPrompt } from './offline-person
 export const OFFLINE_MODEL_ID = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
 
 /**
+ * Fallback for GPUs without the `shader-f16` WebGPU feature (common on
+ * older/budget Android GPUs): same model with f32 weights (~1128 MB GPU
+ * memory vs ~879 MB). `'gpu' in navigator` passes on those devices, so
+ * without this fallback engine creation throws and offline replies fail.
+ */
+export const OFFLINE_MODEL_ID_F32 = 'Llama-3.2-1B-Instruct-q4f32_1-MLC';
+
+/**
+ * Minimal structural view of `navigator.gpu` — the project doesn't pull in
+ * @webgpu/types (tsconfig `types: []`), and this is all we touch.
+ */
+interface WebGpuLike {
+  requestAdapter(): Promise<{ features: { has(feature: string): boolean } } | null>;
+}
+
+/**
  * Runs JOURNEY's offline persona locally via WebLLM/WebGPU. Feature-detect
  * with `isSupported` before calling anything else — devices without WebGPU
  * (most headless/CI browsers included) fall back to cached-content-only
@@ -31,6 +47,13 @@ export class WebLlmService {
   readonly isSupported = signal(WebLlmService.detectWebGpuSupport());
   readonly isLoading = signal(false);
   readonly loadProgressText = signal<string | null>(null);
+
+  /**
+   * Human-readable reason the last engine load or generation failed —
+   * surfaced in the chat UI so failures are diagnosable on a phone,
+   * where there's no DevTools console to inspect.
+   */
+  readonly lastError = signal<string | null>(null);
 
   private static detectWebGpuSupport(): boolean {
     return typeof navigator !== 'undefined' && 'gpu' in navigator;
@@ -87,25 +110,42 @@ export class WebLlmService {
 
     if (!this.engineLoadPromise) {
       this.isLoading.set(true);
+      this.lastError.set(null);
 
-      this.engineLoadPromise = import('@mlc-ai/web-llm')
-        .then(({ CreateMLCEngine }) =>
-          CreateMLCEngine(OFFLINE_MODEL_ID, {
-            initProgressCallback: (report) => this.loadProgressText.set(report.text),
-          }),
-        )
+      this.engineLoadPromise = this.loadEngine()
         .then((engine) => {
           this.engine = engine;
           this.isLoading.set(false);
           return engine;
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           this.isLoading.set(false);
           this.engineLoadPromise = null;
+          this.lastError.set(error instanceof Error ? error.message : String(error));
           throw error;
         });
     }
 
     return this.engineLoadPromise;
+  }
+
+  private async loadEngine(): Promise<MLCEngine> {
+    // `'gpu' in navigator` (isSupported) only proves the API exists. The
+    // adapter can still be unavailable, and the f16 model additionally
+    // needs the shader-f16 feature — probe before committing to a model.
+    const gpu = (navigator as Navigator & { gpu?: WebGpuLike }).gpu;
+    const adapter = gpu ? await gpu.requestAdapter() : null;
+
+    if (!adapter) {
+      throw new Error('WebGPU reports no usable GPU adapter on this device.');
+    }
+
+    const modelId = adapter.features.has('shader-f16') ? OFFLINE_MODEL_ID : OFFLINE_MODEL_ID_F32;
+
+    const { CreateMLCEngine } = await import('@mlc-ai/web-llm');
+
+    return CreateMLCEngine(modelId, {
+      initProgressCallback: (report) => this.loadProgressText.set(report.text),
+    });
   }
 }
