@@ -5,6 +5,7 @@ import { ChatPage } from './chat-page';
 import { LearnerService } from '../../../core/services/learner.service';
 import { JourneyService } from '../../../core/services/journey.service';
 import { DashboardService } from '../../../core/services/dashboard.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { ConnectivityService } from '../../../core/services/connectivity.service';
 import { OfflineCacheService } from '../../../core/offline/offline-cache.service';
 import { WebLlmService } from '../../../core/offline/webllm.service';
@@ -66,6 +67,9 @@ function configure(options: {
     imports: [ChatPage],
     providers: [
       provideRouter([]),
+      // The app shell (rendered inside the page) injects AuthService for its
+      // sign-out control — stub it so the component renders without HttpClient.
+      { provide: AuthService, useValue: { logout: vi.fn() } },
       { provide: LearnerService, useValue: learnerService },
       { provide: JourneyService, useValue: journeyService },
       { provide: DashboardService, useValue: dashboardService },
