@@ -36,3 +36,24 @@ jobs:
       - name: Deploy
         if: success()
         run: aws s3 sync ./dist/learnbridge-web/browser s3://journey.co.za
+
+      # Without this, CloudFront keeps serving cached copies of index.html,
+      # ngsw.json, and ngsw-worker.js until their TTL expires — users stay
+      # on the old app version (and the service worker never learns an
+      # update exists). Invalidate everything; hashed bundles are unaffected
+      # by design and /* counts as one path against the free-tier 1000/month.
+      - name: Invalidate CloudFront
+        if: success()
+        run: |
+          DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?DomainName=='d25qd2jtfjwsop.cloudfront.net'].Id | [0]" \
+            --output text)
+
+          if [ -z "$DISTRIBUTION_ID" ] || [ "$DISTRIBUTION_ID" = "None" ]; then
+            echo "::error::CloudFront distribution for d25qd2jtfjwsop.cloudfront.net not found"
+            exit 1
+          fi
+
+          aws cloudfront create-invalidation \
+            --distribution-id "$DISTRIBUTION_ID" \
+            --paths "/*"
