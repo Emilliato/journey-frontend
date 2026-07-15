@@ -39,8 +39,11 @@ function configure(options: { online: boolean; webGpuSupported: boolean; consent
     isSupported: () => options.webGpuSupported,
     isLoading: () => false,
     loadProgressText: () => null,
+    lastError: () => null,
+    gpuStatus: () => (options.webGpuSupported ? 'f16' : 'unavailable'),
     preload: vi.fn(),
     generateReply: vi.fn().mockResolvedValue('offline reply'),
+    checkReadiness: vi.fn().mockResolvedValue(options.webGpuSupported),
   };
 
   TestBed.configureTestingModule({
@@ -161,5 +164,33 @@ describe('ChatPage', () => {
     expect(webLlmService.generateReply).not.toHaveBeenCalled();
     expect(journeyService.sendMessage).not.toHaveBeenCalled();
     expect(fixture.componentInstance.errorMessage()).toContain("can't generate replies offline");
+  });
+
+  it('confirms GPU and offline model readiness via the check button', async () => {
+    const { webLlmService } = configure({ online: true, webGpuSupported: true });
+
+    const fixture = TestBed.createComponent(ChatPage);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    await fixture.componentInstance.checkOfflineReadiness();
+
+    expect(webLlmService.checkReadiness).toHaveBeenCalled();
+    expect(fixture.componentInstance.offlineReady()).toBe(true);
+    expect(fixture.componentInstance.readinessMessage()).toContain('GPU ready');
+    expect(fixture.componentInstance.readinessMessage()).toContain('Offline model loaded');
+  });
+
+  it('reports why offline mode is not ready when the readiness check fails', async () => {
+    configure({ online: true, webGpuSupported: false });
+
+    const fixture = TestBed.createComponent(ChatPage);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    await fixture.componentInstance.checkOfflineReadiness();
+
+    expect(fixture.componentInstance.offlineReady()).toBe(false);
+    expect(fixture.componentInstance.readinessMessage()).toContain('Offline mode is not ready');
   });
 });

@@ -64,6 +64,27 @@
     </section>
 
     <aside class="goal-panel">
+      <div class="offline-readiness">
+        <h2>Offline mode</h2>
+        <button
+          type="button"
+          class="readiness-button"
+          (click)="checkOfflineReadiness()"
+          [disabled]="isCheckingReadiness()"
+        >
+          @if (isCheckingReadiness()) {
+            {{ webLlmService.loadProgressText() ?? 'Checking…' }}
+          } @else {
+            Check offline readiness
+          }
+        </button>
+        @if (readinessMessage()) {
+          <p class="readiness-result" [class.ok]="offlineReady()" [class.failed]="!offlineReady()">
+            {{ readinessMessage() }}
+          </p>
+        }
+      </div>
+
       <h2>Goals</h2>
       @if (goals().length === 0) {
         <p class="muted">No goals yet — they'll show up here as JOURNEY notices them.</p>

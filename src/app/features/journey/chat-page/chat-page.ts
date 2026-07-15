@@ -49,6 +49,11 @@ export class ChatPage implements OnInit, OnDestroy {
   readonly messages = signal<ChatMessage[]>([]);
   readonly goals = signal<Goal[]>([]);
   readonly isStarting = signal(true);
+
+  // "Check offline readiness" button state — see checkOfflineReadiness().
+  readonly isCheckingReadiness = signal(false);
+  readonly offlineReady = signal(false);
+  readonly readinessMessage = signal<string | null>(null);
   readonly isSending = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
@@ -109,6 +114,36 @@ export class ChatPage implements OnInit, OnDestroy {
     } else {
       this.isSending.set(false);
       this.errorMessage.set("JOURNEY can't generate replies offline on this device.");
+    }
+  }
+
+  /**
+   * Explicitly verifies that offline mode will work on this device: probes
+   * the GPU and loads the on-device model (downloading it if not yet
+   * cached — so this doubles as a "prepare offline mode" action). The
+   * result stays on screen so a parent can confirm readiness before the
+   * learner goes somewhere without connectivity.
+   */
+  async checkOfflineReadiness(): Promise<void> {
+    this.isCheckingReadiness.set(true);
+    this.readinessMessage.set(null);
+
+    const ready = await this.webLlmService.checkReadiness();
+
+    this.isCheckingReadiness.set(false);
+    this.offlineReady.set(ready);
+
+    if (ready) {
+      const gpuLabel =
+        this.webLlmService.gpuStatus() === 'no-f16'
+          ? 'GPU ready (compatibility mode)'
+          : 'GPU ready';
+      this.readinessMessage.set(
+        `✓ ${gpuLabel} · ✓ Offline model loaded — JOURNEY can reply without internet.`,
+      );
+    } else {
+      const reason = this.webLlmService.lastError() ?? 'This device does not support WebGPU.';
+      this.readinessMessage.set(`✗ Offline mode is not ready: ${reason}`);
     }
   }
 
