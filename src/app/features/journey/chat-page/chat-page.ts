@@ -461,14 +461,29 @@ export class ChatPage implements OnInit, OnDestroy {
   }
 
   private async sendOffline(text: string): Promise<void> {
-    try {
-      const history = this.messages()
-        .slice(0, -1)
-        .map((m) => ({
-          role: m.role === 'learner' ? ('user' as const) : ('assistant' as const),
-          content: m.text,
-        }));
+    // The just-typed learner message is the last entry; everything before
+    // it is prior context for the local model.
+    const history = this.messages()
+      .slice(0, -1)
+      .map((m) => ({
+        role: m.role === 'learner' ? ('user' as const) : ('assistant' as const),
+        content: m.text,
+      }));
 
+    // A placeholder JOURNEY bubble that fills in token-by-token as the model
+    // streams, so the child sees a reply forming immediately instead of
+    // waiting out the whole (slow on mobile) generation.
+    this.messages.update((current) => [...current, { role: 'journey', text: '' }]);
+    const streamInto = (delta: string): void => {
+      this.messages.update((current) => {
+        const copy = current.slice();
+        const last = copy[copy.length - 1];
+        copy[copy.length - 1] = { ...last, text: last.text + delta };
+        return copy;
+      });
+    };
+
+    try {
       const result = await this.offlineJourneyService.respond(
         this.learnerId,
         text,
@@ -476,9 +491,18 @@ export class ChatPage implements OnInit, OnDestroy {
         this.offlineMemories,
         this.offlineConsentActive(),
         history,
+        streamInto,
       );
       this.isSending.set(false);
-      this.appendMessage('journey', result.reply);
+
+      // Reconcile the streamed bubble with the authoritative full reply and
+      // persist it once (streaming only updated the in-memory signal).
+      this.messages.update((current) => {
+        const copy = current.slice();
+        copy[copy.length - 1] = { role: 'journey', text: result.reply };
+        return copy;
+      });
+      void this.offlineCache.appendChatMessage(this.learnerId, 'journey', result.reply);
 
       if (result.goalWritten) {
         this.goals.update((current) => [result.goalWritten!, ...current]);
@@ -495,6 +519,16 @@ export class ChatPage implements OnInit, OnDestroy {
       }
     } catch (error) {
       this.isSending.set(false);
+
+      // Drop the placeholder if nothing streamed into it, so a failed reply
+      // doesn't leave a blank bubble behind.
+      this.messages.update((current) => {
+        const last = current[current.length - 1];
+        return last && last.role === 'journey' && last.text === ''
+          ? current.slice(0, -1)
+          : current;
+      });
+
       const detail =
         this.webLlmService.lastError() ??
         (error instanceof Error ? error.message : String(error));

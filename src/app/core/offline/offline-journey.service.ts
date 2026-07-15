@@ -51,6 +51,7 @@ export class OfflineJourneyService {
     memories: readonly OfflinePersonaMemory[] = [],
     consentActive = true,
     history: readonly OfflineChatTurn[] = [],
+    onToken?: (delta: string) => void,
   ): Promise<OfflineJourneyResult> {
     // Ground the local model in the bundled content pack: pull the notes
     // most relevant to this message and pass them as reference context.
@@ -62,6 +63,7 @@ export class OfflineJourneyService {
       memories,
       referenceNotes,
       history,
+      onToken,
     );
 
     let goalWritten: Goal | null = null;

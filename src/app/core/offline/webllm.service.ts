@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import type { MLCEngine } from '@mlc-ai/web-llm';
+import type { MLCEngineInterface } from '@mlc-ai/web-llm';
 import { ContentNote } from './content-pack';
 import { OfflinePersonaMemory, buildOfflineSystemPrompt } from './offline-persona';
 
@@ -41,9 +41,18 @@ export interface OfflineChatTurn {
 
 /**
  * The small local model gets a bounded window of prior turns: enough for
- * continuity, small enough to keep prompts fast on a phone GPU.
+ * continuity, small enough to keep prompts fast on a phone GPU. Kept short
+ * on purpose — every extra turn lengthens prefill, the slowest part of a
+ * reply on mobile.
  */
-const MAX_HISTORY_TURNS = 12;
+const MAX_HISTORY_TURNS = 6;
+
+/**
+ * Cap on generated tokens. JOURNEY's offline replies to a child are meant to
+ * be short and encouraging, and a cap bounds the worst-case wait on a slow
+ * phone GPU (decode time scales with tokens produced).
+ */
+const MAX_REPLY_TOKENS = 200;
 
 /**
  * Runs JOURNEY's offline persona locally via WebLLM/WebGPU. Feature-detect
@@ -57,8 +66,8 @@ const MAX_HISTORY_TURNS = 12;
  */
 @Injectable({ providedIn: 'root' })
 export class WebLlmService {
-  private engine: MLCEngine | null = null;
-  private engineLoadPromise: Promise<MLCEngine> | null = null;
+  private engine: MLCEngineInterface | null = null;
+  private engineLoadPromise: Promise<MLCEngineInterface> | null = null;
 
   readonly isSupported = signal(WebLlmService.detectWebGpuSupport());
   readonly isLoading = signal(false);
@@ -126,12 +135,19 @@ export class WebLlmService {
     }
   }
 
+  /**
+   * Generates JOURNEY's offline reply. When `onToken` is supplied the reply
+   * is streamed — each token is delivered as it's produced so text appears
+   * in the chat almost immediately instead of after the whole (slow on
+   * mobile) generation completes. The full reply is always returned too.
+   */
   async generateReply(
     learnerMessage: string,
     cachedGoalTitles: readonly string[],
     memories: readonly OfflinePersonaMemory[] = [],
     referenceNotes: readonly ContentNote[] = [],
     history: readonly OfflineChatTurn[] = [],
+    onToken?: (delta: string) => void,
   ): Promise<string> {
     if (!this.isSupported()) {
       throw new Error('WebGPU is not supported on this device.');
@@ -144,21 +160,33 @@ export class WebLlmService {
         ? `The learner's saved goals: ${cachedGoalTitles.join('; ')}.`
         : `The learner has no saved goals cached yet.`;
 
-    const completion = await engine.chat.completions.create({
-      messages: [
-        { role: 'system', content: `${buildOfflineSystemPrompt(memories, referenceNotes)}\n\n${goalContext}` },
-        // Prior turns (including ones Claude answered before the
-        // connection dropped) so the local model continues the same
-        // conversation instead of starting cold.
-        ...history.slice(-MAX_HISTORY_TURNS).map((turn) => ({ role: turn.role, content: turn.content })),
-        { role: 'user', content: learnerMessage },
-      ],
+    const messages = [
+      { role: 'system' as const, content: `${buildOfflineSystemPrompt(memories, referenceNotes)}\n\n${goalContext}` },
+      // Prior turns (including ones Claude answered before the connection
+      // dropped) so the local model continues the same conversation.
+      ...history.slice(-MAX_HISTORY_TURNS).map((turn) => ({ role: turn.role, content: turn.content })),
+      { role: 'user' as const, content: learnerMessage },
+    ];
+
+    const chunks = await engine.chat.completions.create({
+      messages,
+      stream: true,
+      max_tokens: MAX_REPLY_TOKENS,
     });
 
-    return completion.choices[0]?.message?.content ?? "Sorry, I couldn't come up with a reply just now.";
+    let full = '';
+    for await (const chunk of chunks) {
+      const delta = chunk.choices[0]?.delta?.content ?? '';
+      if (delta) {
+        full += delta;
+        onToken?.(delta);
+      }
+    }
+
+    return full || "Sorry, I couldn't come up with a reply just now.";
   }
 
-  private async ensureEngine(): Promise<MLCEngine> {
+  private async ensureEngine(): Promise<MLCEngineInterface> {
     if (this.engine) {
       return this.engine;
     }
@@ -168,10 +196,14 @@ export class WebLlmService {
       this.lastError.set(null);
 
       this.engineLoadPromise = this.loadEngine()
-        .then((engine) => {
+        .then(async (engine) => {
           this.engine = engine;
           this.isLoading.set(false);
           this.isReady.set(true);
+          // Warm up in the background: a 1-token generation forces WebGPU
+          // shader compilation now, so the learner's *first* real reply
+          // isn't paying that one-time cost on top of generation.
+          void this.warmUp(engine);
           return engine;
         })
         .catch((error: unknown) => {
@@ -185,7 +217,7 @@ export class WebLlmService {
     return this.engineLoadPromise;
   }
 
-  private async loadEngine(): Promise<MLCEngine> {
+  private async loadEngine(): Promise<MLCEngineInterface> {
     // `'gpu' in navigator` (isSupported) only proves the API exists. The
     // adapter can still be unavailable, and the f16 model additionally
     // needs the shader-f16 feature — probe before committing to a model.
@@ -202,13 +234,35 @@ export class WebLlmService {
 
     const modelId = hasF16 ? OFFLINE_MODEL_ID : OFFLINE_MODEL_ID_F32;
 
-    const { CreateMLCEngine } = await import('@mlc-ai/web-llm');
+    const webllm = await import('@mlc-ai/web-llm');
+    const initProgressCallback = (report: { text: string; progress?: number }): void => {
+      this.loadProgressText.set(report.text);
+      this.loadProgressPercent.set(Math.round((report.progress ?? 0) * 100));
+    };
 
-    return CreateMLCEngine(modelId, {
-      initProgressCallback: (report) => {
-        this.loadProgressText.set(report.text);
-        this.loadProgressPercent.set(Math.round((report.progress ?? 0) * 100));
-      },
-    });
+    // Run the model in a dedicated Web Worker so load + inference never
+    // block the UI thread — the key to staying responsive on phones. Fall
+    // back to a main-thread engine only if the worker can't be created
+    // (e.g. a browser without module-worker support).
+    try {
+      const worker = new Worker(new URL('./webllm.worker', import.meta.url), { type: 'module' });
+      return await webllm.CreateWebWorkerMLCEngine(worker, modelId, { initProgressCallback });
+    } catch (workerError) {
+      console.warn('WebLLM worker unavailable, falling back to main-thread engine.', workerError);
+      return await webllm.CreateMLCEngine(modelId, { initProgressCallback });
+    }
+  }
+
+  /** One tiny generation to trigger shader compilation ahead of first use. */
+  private async warmUp(engine: MLCEngineInterface): Promise<void> {
+    try {
+      await engine.chat.completions.create({
+        messages: [{ role: 'user', content: 'hi' }],
+        max_tokens: 1,
+      });
+    } catch {
+      // Warm-up is best-effort — a failure here just means the first real
+      // reply pays the compile cost, which is the pre-warm behaviour anyway.
+    }
   }
 }
