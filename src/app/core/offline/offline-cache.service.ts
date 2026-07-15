@@ -15,6 +15,7 @@ export class OfflineCacheService {
       id: learner.id,
       displayName: learner.displayName,
       consentActive: learner.consentActive,
+      avatarConfig: learner.avatarConfig,
       cachedAt: new Date().toISOString(),
     });
   }

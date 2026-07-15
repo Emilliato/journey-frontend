@@ -5,6 +5,8 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { OfflineAuthService } from '../../../core/offline/offline-auth.service';
 import { AuthResponse } from '../../../core/models/auth.models';
+import { AvatarComponent } from '../../../shared/avatar/avatar.component';
+import { AvatarConfig } from '../../../shared/avatar/avatar-config';
 
 /**
  * One sign-in for both roles: parents use their email, learners use the
@@ -16,11 +18,22 @@ import { AuthResponse } from '../../../core/models/auth.models';
  */
 @Component({
   selector: 'app-login-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, AvatarComponent],
   templateUrl: './login-page.html',
   styleUrl: './login-page.scss',
 })
 export class LoginPage {
+  /** A friendly companion greeting on the sign-in screen (cosmetic). */
+  protected readonly heroAvatar: AvatarConfig = {
+    skin: '#E8B48A',
+    hair: 'curly',
+    hairColor: '#3B2417',
+    eyes: 'happy',
+    accessory: 'glasses',
+    outfitColor: '#4338CA',
+    themeColor: '#4338CA',
+  };
+
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly offlineAuthService = inject(OfflineAuthService);

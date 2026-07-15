@@ -4,28 +4,28 @@
   right: 16px;
   z-index: 1000;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--lb-radius-pill);
   font-size: 0.75rem;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--lb-shadow-soft);
 
   &.syncing {
-    background: #eef2ff;
-    color: #4338ca;
+    background: var(--lb-indigo-soft);
+    color: var(--lb-indigo);
   }
 
   &.synced {
-    background: #ecfdf5;
-    color: #15803d;
+    background: color-mix(in oklab, var(--lb-online) 14%, white);
+    color: color-mix(in oklab, var(--lb-online) 60%, black);
   }
 
   &.offline {
-    background: #fffbeb;
-    color: #92400e;
+    background: color-mix(in oklab, var(--lb-offline) 16%, white);
+    color: color-mix(in oklab, var(--lb-offline) 55%, black);
   }
 
   &.error {
-    background: #fef2f2;
-    color: #b91c1c;
+    background: color-mix(in oklab, var(--lb-danger) 10%, white);
+    color: var(--lb-danger);
   }
 }

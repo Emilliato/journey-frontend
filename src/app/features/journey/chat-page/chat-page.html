@@ -1,103 +1,193 @@
-<div class="journey-page">
-  <header class="page-header">
-    <h1>JOURNEY {{ learnerName() ? '— ' + learnerName() : '' }}</h1>
-    <a routerLink="/learners" class="link-button">Back</a>
-  </header>
-
-  @if (!isOnlineMode()) {
-    <p class="offline-banner">
-      You're offline
-      @if (webLlmService.isSupported()) {
-        — JOURNEY is replying using an on-device model instead of Claude.
-      } @else {
-        — this device can't run the on-device model, so only your cached goals are shown below.
-      }
-    </p>
-  }
-
-  @if (errorMessage() && isStarting() === false && messages().length === 0) {
-    <p class="error">{{ errorMessage() }}</p>
-  }
-
-  <div class="layout">
-    <section class="chat-panel">
-      <div class="messages">
-        @if (isStarting()) {
-          <p class="muted">Starting conversation…</p>
+<lb-app-shell [title]="learnerName() ? 'Hi ' + learnerName() + '!' : 'Learn with JOURNEY'" variant="learner" [navItems]="navItems()">
+  <!-- Hero: avatar companion + JOURNEY chat -->
+  <section class="hero" [style.background]="heroBackground()">
+    <div class="hero-top">
+      <div class="hero-avatar">
+        <lb-avatar [config]="avatarConfig()" [state]="avatarState()" [size]="120" />
+        @if (celebrating()) {
+          <lb-confetti />
         }
-        @for (message of messages(); track $index) {
-          <div class="message" [class.learner]="message.role === 'learner'" [class.journey]="message.role === 'journey'">
+      </div>
+      <div class="hero-meta">
+        <div class="hero-name">
+          <span class="font-display">JOURNEY</span>
+          <span class="lb-pill" [class.indigo]="isOnlineMode()" [class.amber]="!isOnlineMode()">
+            {{ isOnlineMode() ? 'cloud brain' : 'on-device' }}
+          </span>
+        </div>
+        @if (learnerName()) {
+          <p class="hero-hint">Ready when you are, {{ learnerName() }}. Ask me anything ✨</p>
+        }
+      </div>
+    </div>
+
+    @if (!isOnlineMode()) {
+      <div class="offline-banner">
+        <span class="rocket" aria-hidden="true">🚀</span>
+        <div class="offline-body">
+          @if (webLlmService.isSupported()) {
+            <b>We're offline</b> — JOURNEY is running right here on your device.
+            <div class="offline-progress-label">
+              Getting JOURNEY ready for offline… {{ webLlmService.loadProgressPercent() }}%
+            </div>
+            <div class="offline-progress-track">
+              <div class="offline-progress-fill" [style.width.%]="webLlmService.loadProgressPercent()"></div>
+            </div>
+          } @else {
+            <b>We're offline</b> — this device can't run the on-device model, so only your cached goals are shown below.
+          }
+        </div>
+      </div>
+    }
+
+    @if (errorMessage() && isStarting() === false && messages().length === 0) {
+      <p class="lb-error">{{ errorMessage() }}</p>
+    }
+
+    <!-- Chat transcript -->
+    <div class="chat-scroll">
+      @if (isStarting()) {
+        <p class="lb-muted">Starting conversation…</p>
+      }
+      @for (message of messages(); track $index) {
+        <div class="bubble-row" [class.mine]="message.role === 'learner'">
+          <div
+            class="bubble"
+            [class.mine]="message.role === 'learner'"
+            [style.background]="message.role === 'learner' ? themeColor() : null"
+          >
             @if (message.role === 'journey') {
-              <!-- JOURNEY replies are markdown; sanitized in MarkdownPipe. -->
-              <div class="message-body" [innerHTML]="message.text | markdown"></div>
+              <div [innerHTML]="message.text | markdown"></div>
             } @else {
               {{ message.text }}
             }
           </div>
-        }
-        @if (isSending()) {
-          <div class="message journey pending">
+        </div>
+      }
+      @if (isSending()) {
+        <div class="thinking-row">
+          <span class="lb-typing"><span></span><span></span><span></span></span>
+          <span class="lb-muted">
             {{ webLlmService.isLoading() ? (webLlmService.loadProgressText() ?? 'Loading on-device model…') : 'JOURNEY is thinking…' }}
+          </span>
+        </div>
+      }
+    </div>
+
+    @if (errorMessage() && messages().length > 0) {
+      <p class="lb-error">{{ errorMessage() }}</p>
+    }
+
+    <!-- Composer -->
+    <form class="composer" [formGroup]="form" (ngSubmit)="send()">
+      <input
+        type="text"
+        formControlName="message"
+        placeholder="Ask JOURNEY anything…"
+        autocomplete="off"
+        [disabled]="isStarting() || (!isOnlineMode() && (!webLlmService.isSupported() || !offlineConsentActive()))"
+      />
+      <button
+        type="submit"
+        aria-label="Send"
+        [disabled]="isStarting() || isSending() || (!isOnlineMode() && (!webLlmService.isSupported() || !offlineConsentActive()))"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 2 11 13" />
+          <path d="M22 2 15 22 11 13 2 9 22 2Z" />
+        </svg>
+      </button>
+    </form>
+  </section>
+
+  <!-- Streak + badges -->
+  <section class="strip">
+    <div class="streak lb-card">
+      <span class="flame" aria-hidden="true">🔥</span>
+      <div>
+        <div class="strip-label">Streak</div>
+        <div class="streak-value font-display">{{ streakDays() }} days</div>
+      </div>
+    </div>
+    <div class="badges lb-card">
+      @for (badge of badges(); track badge.name) {
+        <div class="badge-cell">
+          <lb-badge-icon [kind]="badge.icon" [earned]="badge.earned" />
+          <span>{{ badge.name }}</span>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- Quest board -->
+  <section class="quests">
+    <h2 class="lb-section-title">Quest Board</h2>
+    @if (goals().length === 0) {
+      <p class="lb-muted quests-empty">No quests yet — they'll appear here as JOURNEY notices your goals.</p>
+    } @else {
+      <div class="quest-grid">
+        @for (goal of goals(); track goal.id) {
+          <div class="quest-card lb-card">
+            <lb-progress-ring [value]="questProgress(goal)" [color]="questColor(goal.status)" />
+            <div class="quest-body">
+              <div class="quest-meta">
+                <span class="lb-pill" [class]="questTone(goal.status)">{{ questLabel(goal.status) }}</span>
+                <span class="quest-time">{{ goal.updatedAt }}</span>
+              </div>
+              <div class="quest-title">{{ goal.title }}</div>
+              @if (goal.description) {
+                <p class="quest-desc">{{ goal.description }}</p>
+              }
+            </div>
           </div>
         }
       </div>
+    }
+  </section>
 
-      @if (errorMessage() && messages().length > 0) {
-        <p class="error inline">{{ errorMessage() }}</p>
-      }
-
-      <form class="composer" [formGroup]="form" (ngSubmit)="send()">
-        <input
-          type="text"
-          formControlName="message"
-          placeholder="Say something to JOURNEY…"
-          autocomplete="off"
-          [disabled]="isStarting() || (!isOnlineMode() && (!webLlmService.isSupported() || !offlineConsentActive()))"
-        />
-        <button
-          type="submit"
-          [disabled]="isStarting() || isSending() || (!isOnlineMode() && (!webLlmService.isSupported() || !offlineConsentActive()))"
-        >
-          Send
-        </button>
-      </form>
-    </section>
-
-    <aside class="goal-panel">
-      <div class="offline-readiness">
-        <h2>Offline mode</h2>
-        <button
-          type="button"
-          class="readiness-button"
-          (click)="checkOfflineReadiness()"
-          [disabled]="isCheckingReadiness()"
-        >
-          @if (isCheckingReadiness()) {
-            {{ webLlmService.loadProgressText() ?? 'Checking…' }}
+  <!-- Brain Sparks -->
+  @if (showSpark(); as _) {
+    @if (currentSpark(); as spark) {
+      <section class="spark-wrap lb-pop">
+        <div class="spark-card">
+          <button type="button" class="spark-close" aria-label="Dismiss" (click)="dismissSpark()">✕</button>
+          <div class="spark-tag">
+            <span aria-hidden="true">✨</span> BRAIN SPARK
+          </div>
+          @if (!sparkAnswered()) {
+            <div class="spark-prompt font-display">{{ spark.prompt }}</div>
+            <div class="spark-options">
+              @for (option of spark.options; track option) {
+                <button type="button" class="spark-option" (click)="answerSpark(option)">{{ option }}</button>
+              }
+            </div>
           } @else {
-            Check offline readiness
+            <div class="lb-fade-in">
+              <div class="spark-prompt font-display">JOURNEY learned something about you! 🧠✨</div>
+              <p class="spark-note">
+                Saved to your learning preferences — only about how you like to learn, never feelings or family.
+              </p>
+              <button type="button" class="lb-btn ghost sm" (click)="nextSpark()">Another one →</button>
+            </div>
           }
-        </button>
-        @if (readinessMessage()) {
-          <p class="readiness-result" [class.ok]="offlineReady()" [class.failed]="!offlineReady()">
-            {{ readinessMessage() }}
-          </p>
-        }
-      </div>
+        </div>
+      </section>
+    }
+  }
 
-      <h2>Goals</h2>
-      @if (goals().length === 0) {
-        <p class="muted">No goals yet — they'll show up here as JOURNEY notices them.</p>
+  <!-- Offline readiness (kept from Phase 4) -->
+  <section class="readiness">
+    <button type="button" class="lb-btn soft sm" (click)="checkOfflineReadiness()" [disabled]="isCheckingReadiness()">
+      @if (isCheckingReadiness()) {
+        {{ webLlmService.loadProgressText() ?? 'Checking…' }}
       } @else {
-        <ul>
-          @for (goal of goals(); track goal.id) {
-            <li class="goal-card" [class.completed]="goal.status === 'Completed'" [class.abandoned]="goal.status === 'Abandoned'">
-              <span class="title">{{ goal.title }}</span>
-              <span class="status">{{ goal.status }}</span>
-            </li>
-          }
-        </ul>
+        Check offline readiness
       }
-    </aside>
-  </div>
-</div>
+    </button>
+    @if (readinessMessage()) {
+      <p class="readiness-result" [class.ok]="offlineReady()" [class.failed]="!offlineReady()">
+        {{ readinessMessage() }}
+      </p>
+    }
+  </section>
+</lb-app-shell>

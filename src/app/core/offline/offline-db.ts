@@ -17,6 +17,8 @@ export interface OfflineLearnerProfile {
    * be rejected on sync. Absent (older cache) is treated as not-granted.
    */
   consentActive: boolean;
+  /** Serialized AvatarConfig JSON so the offline profile picker shows the child's avatar. */
+  avatarConfig?: string | null;
   cachedAt: string;
 }
 

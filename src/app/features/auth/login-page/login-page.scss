@@ -4,12 +4,61 @@
   @include auth.auth-page;
 }
 
+.signin-shell {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.signin-hero {
+  text-align: center;
+  margin-bottom: 1.25rem;
+
+  h1 {
+    margin: 0.5rem 0 0.25rem;
+    font-size: 1.9rem;
+  }
+
+  .hero-sub {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--lb-ink-soft);
+
+    span {
+      font-weight: 700;
+      color: var(--lb-indigo);
+    }
+  }
+}
+
 .auth-card {
   @include auth.auth-card;
 }
 
 .offline-note {
-  color: #15803d;
+  color: color-mix(in oklab, var(--lb-online) 60%, black);
   font-size: 0.85rem;
   margin: 8px 0 0;
+}
+
+.offline-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border-radius: var(--lb-radius-lg);
+  background: var(--lb-indigo-soft);
+  color: var(--lb-indigo-deep);
+  font-size: 0.75rem;
+
+  svg {
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+  }
+
+  p {
+    margin: 0;
+  }
 }

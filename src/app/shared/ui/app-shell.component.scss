@@ -1,0 +1,100 @@
+.shell {
+  min-height: 100vh;
+}
+
+.shell-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0.75rem 1rem;
+  backdrop-filter: blur(8px);
+  background: color-mix(in oklab, var(--lb-cream) 85%, transparent);
+  border-bottom: 1px solid var(--lb-line);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.brand-name {
+  font-weight: 700;
+  font-size: 1.125rem;
+  letter-spacing: -0.01em;
+  color: var(--lb-ink);
+
+  span {
+    color: var(--lb-indigo);
+  }
+}
+
+.shell-title {
+  min-width: 0;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--lb-ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-self: end;
+}
+
+.shell-main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 6rem;
+}
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+}
+
+.bottom-nav-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem;
+  border-radius: var(--lb-radius-pill);
+  background: var(--lb-paper);
+  border: 1px solid var(--lb-line);
+  box-shadow: var(--lb-shadow-lift);
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--lb-radius-pill);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--lb-ink-soft);
+    text-decoration: none;
+    transition:
+      background-color 0.2s var(--lb-smooth),
+      color 0.2s var(--lb-smooth);
+
+    &.active {
+      background: var(--lb-indigo);
+      color: #fff;
+    }
+  }
+}
