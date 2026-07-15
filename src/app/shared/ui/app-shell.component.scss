@@ -16,6 +16,17 @@
   backdrop-filter: blur(8px);
   background: color-mix(in oklab, var(--lb-cream) 85%, transparent);
   border-bottom: 1px solid var(--lb-line);
+
+  // Grid children must be allowed to shrink below their content width,
+  // otherwise the brand + pill push the header wider than the viewport.
+  > * {
+    min-width: 0;
+  }
+
+  @media (max-width: 560px) {
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem;
+  }
 }
 
 .brand {
@@ -23,6 +34,7 @@
   align-items: center;
   gap: 0.5rem;
   text-decoration: none;
+  min-width: 0;
 }
 
 .brand-name {
@@ -30,9 +42,16 @@
   font-size: 1.125rem;
   letter-spacing: -0.01em;
   color: var(--lb-ink);
+  white-space: nowrap;
 
   span {
     color: var(--lb-indigo);
+  }
+
+  // Narrowest screens: keep the logo mark, drop the wordmark so the
+  // connection pill and sign-out always fit.
+  @media (max-width: 380px) {
+    display: none;
   }
 }
 
@@ -45,6 +64,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  // Decorative on mobile — the page's own heading already names the screen.
+  @media (max-width: 560px) {
+    display: none;
+  }
 }
 
 .shell-right {
@@ -91,6 +115,8 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 40;
+  // Never wider than the viewport (with a little inset).
+  max-width: calc(100vw - 1.5rem);
 }
 
 .bottom-nav-inner {
@@ -112,6 +138,7 @@
     font-size: 0.75rem;
     font-weight: 600;
     color: var(--lb-ink-soft);
+    white-space: nowrap;
     text-decoration: none;
     transition:
       background-color 0.2s var(--lb-smooth),
@@ -120,6 +147,10 @@
     &.active {
       background: var(--lb-indigo);
       color: #fff;
+    }
+
+    @media (max-width: 380px) {
+      padding: 0.5rem 0.75rem;
     }
   }
 }
