@@ -1,9 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { ChatPage } from './chat-page';
 import { LearnerService } from '../../../core/services/learner.service';
 import { JourneyService } from '../../../core/services/journey.service';
+import { DashboardService } from '../../../core/services/dashboard.service';
 import { ConnectivityService } from '../../../core/services/connectivity.service';
 import { OfflineCacheService } from '../../../core/offline/offline-cache.service';
 import { WebLlmService } from '../../../core/offline/webllm.service';
@@ -17,7 +18,7 @@ function configure(options: {
   cachedChat?: { id: string; learnerId: string; role: 'learner' | 'journey'; text: string; createdAt: string }[];
 }) {
   const learnerService = {
-    getLearner: vi.fn().mockReturnValue(of({ id: LEARNER_ID, displayName: 'Kiddo', createdAt: '', consentActive: true })),
+    getLearner: vi.fn().mockReturnValue(of({ id: LEARNER_ID, displayName: 'Kiddo', createdAt: '', consentActive: true, avatarConfig: null })),
   };
   const journeyService = {
     startSession: vi.fn().mockReturnValue(of({ sessionId: 'session-1', startedAt: '', greeting: 'Hi, I am JOURNEY! What grade are you in?' })),
@@ -25,6 +26,12 @@ function configure(options: {
     listMemories: vi.fn().mockReturnValue(of([])),
     sendMessage: vi.fn(),
     completeSession: vi.fn().mockReturnValue(of(undefined)),
+  };
+  const dashboardService = {
+    listBrainSparks: vi.fn().mockReturnValue(of([])),
+    getDashboard: vi.fn().mockReturnValue(of({ stats: { streakDays: 0, sessionsPerDay: [], minutesPerDay: [], goalsCompletedPerWeek: [], memoryCategoryCounts: [], sessionsLast7Days: 0, learningMinutesLast7Days: 0, activeGoals: 0, completedGoals: 0, offlineSessions: 0 }, timeline: [] })),
+    answerBrainSpark: vi.fn().mockReturnValue(of({ id: 'mem-1', category: 'preference', content: '', createdAt: '' })),
+    deleteMemory: vi.fn().mockReturnValue(of(undefined)),
   };
   const connectivityService = {
     checkOnline: vi.fn().mockReturnValue(of(options.online)),
@@ -45,7 +52,9 @@ function configure(options: {
   const webLlmService = {
     isSupported: () => options.webGpuSupported,
     isLoading: () => false,
+    isReady: () => false,
     loadProgressText: () => null,
+    loadProgressPercent: () => 0,
     lastError: () => null,
     gpuStatus: () => (options.webGpuSupported ? 'f16' : 'unavailable'),
     preload: vi.fn(),
@@ -56,8 +65,10 @@ function configure(options: {
   TestBed.configureTestingModule({
     imports: [ChatPage],
     providers: [
+      provideRouter([]),
       { provide: LearnerService, useValue: learnerService },
       { provide: JourneyService, useValue: journeyService },
+      { provide: DashboardService, useValue: dashboardService },
       { provide: ConnectivityService, useValue: connectivityService },
       { provide: OfflineCacheService, useValue: offlineCache },
       { provide: WebLlmService, useValue: webLlmService },
@@ -68,11 +79,11 @@ function configure(options: {
     ],
   });
 
-  return { learnerService, journeyService, connectivityService, offlineCache, webLlmService };
+  return { learnerService, journeyService, dashboardService, connectivityService, offlineCache, webLlmService };
 }
 
 describe('ChatPage', () => {
-  it('starts an online session and does not touch the offline cache reads when connectivity check succeeds', async () => {
+  it('starts an online session and does not load offline context when connectivity check succeeds', async () => {
     const { journeyService, offlineCache } = configure({ online: true, webGpuSupported: false });
 
     const fixture = TestBed.createComponent(ChatPage);
@@ -80,7 +91,10 @@ describe('ChatPage', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(journeyService.startSession).toHaveBeenCalledWith(LEARNER_ID);
-    expect(offlineCache.getCachedLearnerProfile).not.toHaveBeenCalled();
+    // The cached avatar may be read for instant paint, but the offline
+    // *context* (goals/memories) must not be loaded when online.
+    expect(offlineCache.getCachedGoals).not.toHaveBeenCalled();
+    expect(offlineCache.getCachedMemories).not.toHaveBeenCalled();
     expect(fixture.componentInstance.isOnlineMode()).toBe(true);
   });
 

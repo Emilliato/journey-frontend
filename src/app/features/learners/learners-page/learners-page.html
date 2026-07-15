@@ -1,10 +1,20 @@
-<div class="page">
-  <header class="page-header">
-    <h1>Who's learning today?</h1>
-    @if (!isOfflineList()) {
-      <button type="button" class="link-button" (click)="logout()">Sign out</button>
-    }
+<div class="picker-page font-learner">
+  <header class="picker-header">
+    <div class="picker-brand">
+      <svg width="30" height="30" viewBox="0 0 40 40" aria-hidden="true">
+        <rect x="2" y="2" width="36" height="36" rx="12" fill="var(--lb-indigo)" />
+        <path d="M11 26 L11 14 L15 14 L15 22 L23 22 L23 26 Z" fill="#fff" />
+        <circle cx="28" cy="15" r="4" fill="var(--lb-amber)" />
+      </svg>
+      <span class="font-display">Learn<span>Bridge</span></span>
+    </div>
+    <lb-connection-pill />
   </header>
+
+  <div class="picker-title">
+    <h1 class="font-display">Who's learning today?</h1>
+    <p class="lb-muted">Tap a face to jump in.</p>
+  </div>
 
   @if (isOfflineList()) {
     <p class="offline-banner">
@@ -14,29 +24,47 @@
   }
 
   @if (isLoading()) {
-    <p class="muted">Loading…</p>
+    <p class="lb-muted">Loading…</p>
   } @else if (errorMessage()) {
-    <p class="error">{{ errorMessage() }}</p>
-  } @else if (learners().length === 0) {
-    <div class="empty-state">
+    <p class="lb-error">{{ errorMessage() }}</p>
+  } @else if (pickerLearners().length === 0) {
+    <div class="empty-state lb-card">
       <p>No child profiles yet.</p>
-      <a routerLink="/learners/new" class="primary-button">Add a child</a>
+      <a routerLink="/learners/new" class="lb-btn primary">Add a child</a>
     </div>
   } @else {
-    <ul class="learner-list">
-      @for (learner of learners(); track learner.id) {
-        <li class="learner-card">
-          <span class="name">{{ learner.displayName }}</span>
-          @if (!learner.consentActive) {
-            <span class="badge warning">Consent inactive</span>
-          } @else {
-            <a [routerLink]="['/learners', learner.id, 'journey']" class="talk-link">Talk to JOURNEY</a>
-          }
-        </li>
+    <div class="picker-grid">
+      @for (learner of pickerLearners(); track learner.id; let i = $index) {
+        @if (learner.consentActive) {
+          <a
+            class="picker-card lb-pop"
+            [style.animation-delay.ms]="i * 60"
+            [routerLink]="['/learners', learner.id, 'journey']"
+          >
+            <div class="picker-avatar" [style.background]="learner.avatar.themeColor + '18'">
+              <lb-avatar [config]="learner.avatar" [size]="104" />
+            </div>
+            <div class="picker-name font-display">{{ learner.displayName }}</div>
+            <span class="lb-pill mint">Ready ✓</span>
+          </a>
+        } @else {
+          <div class="picker-card disabled" [style.animation-delay.ms]="i * 60">
+            <div class="picker-avatar" [style.background]="learner.avatar.themeColor + '18'">
+              <lb-avatar [config]="learner.avatar" [size]="104" state="sleepy" />
+            </div>
+            <div class="picker-name font-display">{{ learner.displayName }}</div>
+            <span class="lb-pill amber">Consent inactive</span>
+          </div>
+        }
       }
-    </ul>
+    </div>
+
     @if (!isOfflineList()) {
-      <a routerLink="/learners/new" class="primary-button">Add another child</a>
+      <div class="picker-actions">
+        <a routerLink="/learners/new" class="lb-btn soft">Add another child</a>
+        <a routerLink="/parent" class="lb-btn ghost">Parent dashboard →</a>
+        <button type="button" class="lb-btn ghost" (click)="logout()">Sign out</button>
+      </div>
     }
   }
 </div>

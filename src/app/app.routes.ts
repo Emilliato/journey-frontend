@@ -31,5 +31,21 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./features/journey/chat-page/chat-page').then((m) => m.ChatPage),
   },
+  {
+    path: 'learners/:learnerId/avatar',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/avatar/avatar-studio-page/avatar-studio-page').then(
+        (m) => m.AvatarStudioPage,
+      ),
+  },
+  {
+    path: 'learners/:learnerId/dashboard',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/parent/parent-dashboard-page/parent-dashboard-page').then(
+        (m) => m.ParentDashboardPage,
+      ),
+  },
   { path: '**', redirectTo: 'learners' },
 ];

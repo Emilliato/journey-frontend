@@ -1,20 +1,30 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { LearnerService } from '../../../core/services/learner.service';
 import { OfflineCacheService } from '../../../core/offline/offline-cache.service';
 import { LearnerResponse } from '../../../core/models/learner.models';
+import { AvatarComponent } from '../../../shared/avatar/avatar.component';
+import { ConnectionPillComponent } from '../../../shared/ui/connection-pill.component';
+import { AvatarConfig, parseAvatarConfig } from '../../../shared/avatar/avatar-config';
+
+interface PickerLearner {
+  id: string;
+  displayName: string;
+  consentActive: boolean;
+  avatar: AvatarConfig;
+}
 
 /**
  * The "who's learning today?" profile picker. Parents see and manage
  * every child; a learner account skips this page entirely (login routes
- * them straight to their chat, and deep links redirect below). With no
+ * them straight to their home, and deep links redirect below). With no
  * connection the picker falls back to the profiles cached on this device,
  * so switching children still works offline.
  */
 @Component({
   selector: 'app-learners-page',
-  imports: [RouterLink],
+  imports: [RouterLink, AvatarComponent, ConnectionPillComponent],
   templateUrl: './learners-page.html',
   styleUrl: './learners-page.scss',
 })
@@ -28,6 +38,16 @@ export class LearnersPage implements OnInit {
   readonly isLoading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly isOfflineList = signal(false);
+
+  /** View model: parsed avatar config alongside each learner. */
+  readonly pickerLearners = computed<PickerLearner[]>(() =>
+    this.learners().map((l) => ({
+      id: l.id,
+      displayName: l.displayName,
+      consentActive: l.consentActive,
+      avatar: parseAvatarConfig(l.avatarConfig),
+    })),
+  );
 
   ngOnInit(): void {
     // A learner account has exactly one profile — theirs. No picker.
@@ -79,6 +99,7 @@ export class LearnersPage implements OnInit {
         displayName: profile.displayName,
         createdAt: profile.cachedAt,
         consentActive: profile.consentActive,
+        avatarConfig: profile.avatarConfig ?? null,
       })),
     );
     this.isOfflineList.set(true);

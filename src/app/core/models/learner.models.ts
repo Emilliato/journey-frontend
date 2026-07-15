@@ -11,4 +11,6 @@ export interface LearnerResponse {
   displayName: string;
   createdAt: string;
   consentActive: boolean;
+  /** Serialized AvatarConfig JSON, or null for learners with no avatar yet. */
+  avatarConfig: string | null;
 }

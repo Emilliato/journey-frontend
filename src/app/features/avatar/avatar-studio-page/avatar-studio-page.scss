@@ -1,0 +1,114 @@
+.preview {
+  text-align: center;
+  padding: 1.5rem;
+  border-radius: var(--lb-radius-xl);
+  border: 1px solid var(--lb-line);
+  box-shadow: var(--lb-shadow-soft);
+}
+
+.preview-name {
+  margin-top: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.preview-reaction {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  color: var(--lb-ink-soft);
+}
+
+.preview-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.preview-error {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--lb-danger);
+}
+
+.editors {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.editor {
+  padding: 1rem;
+}
+
+.editor-title {
+  margin-bottom: 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--lb-ink-soft);
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.swatch {
+  height: 2.5rem;
+  width: 2.5rem;
+  border-radius: var(--lb-radius-md);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s var(--lb-spring);
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  &.selected {
+    border-color: var(--lb-ink);
+    box-shadow: var(--lb-shadow-lift);
+    transform: scale(1.1);
+  }
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chip {
+  border-radius: var(--lb-radius-pill);
+  border: 1px solid var(--lb-line);
+  background: var(--lb-paper);
+  color: var(--lb-ink);
+  padding: 0.5rem 1rem;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--lb-smooth),
+    border-color 0.15s var(--lb-smooth),
+    transform 0.15s var(--lb-spring);
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  &:hover:not(.selected) {
+    border-color: var(--lb-indigo);
+  }
+
+  &.selected {
+    background: var(--lb-indigo);
+    color: #fff;
+    border-color: transparent;
+  }
+}

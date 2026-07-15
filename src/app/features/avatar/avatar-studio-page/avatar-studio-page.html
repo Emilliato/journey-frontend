@@ -1,0 +1,130 @@
+<lb-app-shell title="Avatar Studio" variant="learner" [navItems]="navItems()">
+  <!-- Live preview -->
+  <section class="preview" [style.background]="'linear-gradient(135deg, ' + config().themeColor + '22, var(--lb-paper) 60%)'">
+    <lb-avatar [config]="config()" [size]="180" />
+    <div class="preview-name font-display">{{ learnerName() ?? 'Your companion' }}</div>
+    <p class="preview-reaction">{{ reaction() }}</p>
+    <div class="preview-actions">
+      <button type="button" class="lb-btn soft sm" (click)="randomise()">🎲 Randomise</button>
+      <button type="button" class="lb-btn primary sm" (click)="save()" [disabled]="saveState() === 'saving'">
+        @switch (saveState()) {
+          @case ('saving') { Saving… }
+          @case ('saved') { ✓ Saved! }
+          @default { Save avatar }
+        }
+      </button>
+    </div>
+    @if (saveState() === 'error') {
+      <p class="preview-error">Couldn't save — you need to be online to save your avatar. Try again when connected.</p>
+    }
+  </section>
+
+  <!-- Editors -->
+  <section class="editors">
+    <div class="editor lb-card">
+      <div class="editor-title">Skin</div>
+      <div class="swatches">
+        @for (skin of skins; track skin) {
+          <button
+            type="button"
+            class="swatch"
+            [class.selected]="config().skin === skin"
+            [style.background]="skin"
+            [attr.aria-label]="'Skin ' + skin"
+            (click)="patch({ skin })"
+          ></button>
+        }
+      </div>
+    </div>
+
+    <div class="editor lb-card">
+      <div class="editor-title">Hair style</div>
+      <div class="chips">
+        @for (hair of hairs; track hair) {
+          <button
+            type="button"
+            class="chip"
+            [class.selected]="config().hair === hair"
+            (click)="patch({ hair })"
+          >{{ hair }}</button>
+        }
+      </div>
+    </div>
+
+    <div class="editor lb-card">
+      <div class="editor-title">Hair colour</div>
+      <div class="swatches">
+        @for (color of hairColors; track color) {
+          <button
+            type="button"
+            class="swatch"
+            [class.selected]="config().hairColor === color"
+            [style.background]="color"
+            [attr.aria-label]="'Hair colour ' + color"
+            (click)="patch({ hairColor: color })"
+          ></button>
+        }
+      </div>
+    </div>
+
+    <div class="editor lb-card">
+      <div class="editor-title">Eyes</div>
+      <div class="chips">
+        @for (eyes of eyeStyles; track eyes) {
+          <button
+            type="button"
+            class="chip"
+            [class.selected]="config().eyes === eyes"
+            (click)="patch({ eyes })"
+          >{{ eyes }}</button>
+        }
+      </div>
+    </div>
+
+    <div class="editor lb-card">
+      <div class="editor-title">Accessory</div>
+      <div class="chips">
+        @for (accessory of accessories; track accessory) {
+          <button
+            type="button"
+            class="chip"
+            [class.selected]="config().accessory === accessory"
+            (click)="patch({ accessory })"
+          >{{ accessory }}</button>
+        }
+      </div>
+    </div>
+
+    <div class="editor lb-card">
+      <div class="editor-title">Outfit</div>
+      <div class="swatches">
+        @for (color of outfits; track color) {
+          <button
+            type="button"
+            class="swatch"
+            [class.selected]="config().outfitColor === color"
+            [style.background]="color"
+            [attr.aria-label]="'Outfit ' + color"
+            (click)="patch({ outfitColor: color })"
+          ></button>
+        }
+      </div>
+    </div>
+
+    <div class="editor lb-card">
+      <div class="editor-title">Companion theme</div>
+      <div class="swatches">
+        @for (color of outfits; track color) {
+          <button
+            type="button"
+            class="swatch"
+            [class.selected]="config().themeColor === color"
+            [style.background]="color"
+            [attr.aria-label]="'Theme ' + color"
+            (click)="patch({ themeColor: color })"
+          ></button>
+        }
+      </div>
+    </div>
+  </section>
+</lb-app-shell>

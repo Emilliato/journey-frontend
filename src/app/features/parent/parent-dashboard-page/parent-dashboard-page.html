@@ -1,0 +1,164 @@
+<lb-app-shell title="Parent Dashboard" variant="parent" [navItems]="navItems()">
+  @if (isLoading()) {
+    <p class="lb-muted">Loading dashboard…</p>
+  } @else if (errorMessage()) {
+    <p class="lb-error">{{ errorMessage() }}</p>
+  } @else {
+    <!-- Stat tiles -->
+    <section class="tiles">
+      @for (tile of tiles(); track tile.label) {
+        <div class="tile lb-card">
+          <div class="tile-label">{{ tile.label }}</div>
+          <div class="tile-row">
+            <div class="tile-value font-display">{{ tile.value }}</div>
+            <lb-sparkline [data]="tile.series" [color]="tile.color" />
+          </div>
+        </div>
+      }
+    </section>
+
+    <!-- Progress charts -->
+    <section class="charts">
+      <div class="chart-card lb-card">
+        <div class="chart-head">
+          <span>Goal completion</span>
+          <span class="chart-hint">last 12 weeks</span>
+        </div>
+        <svg viewBox="0 0 320 120" class="area-chart" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="areaFill" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stop-color="var(--lb-indigo)" stop-opacity="0.35" />
+              <stop offset="100%" stop-color="var(--lb-indigo)" stop-opacity="0" />
+            </linearGradient>
+          </defs>
+          <path [attr.d]="areaPath()" fill="url(#areaFill)" />
+          <path [attr.d]="linePath()" fill="none" stroke="var(--lb-indigo)" stroke-width="2.5" stroke-linecap="round" />
+        </svg>
+      </div>
+
+      <div class="chart-card lb-card">
+        <div class="chart-head"><span>What JOURNEY tracks</span></div>
+        <div class="hbars">
+          @for (topic of topics(); track topic.label) {
+            <div class="hbar-row">
+              <div class="hbar-label">{{ topic.label }}</div>
+              <div class="hbar-track">
+                <div class="hbar-fill" [style.width.%]="topic.pct"></div>
+              </div>
+              <div class="hbar-value">{{ topic.value }}</div>
+            </div>
+          } @empty {
+            <p class="lb-muted">No memories recorded yet.</p>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- Memory repository -->
+    <section class="memories">
+      <div class="memories-head">
+        <h2 class="lb-section-title">What JOURNEY has learned</h2>
+        <span class="lb-pill indigo">🛡 Never records feelings, health, or family</span>
+      </div>
+      <div class="memory-grid">
+        @for (group of memoryGroups(); track group.category) {
+          <div class="memory-card lb-card">
+            <div class="memory-card-head">
+              <span class="lb-pill" [class]="group.tone">{{ group.label }}</span>
+              <span class="memory-count">{{ group.items.length }} items</span>
+            </div>
+            <ul class="memory-list">
+              @for (memory of group.items; track memory.id) {
+                <li class="memory-item">
+                  <div class="memory-content">
+                    <div>{{ memory.content }}</div>
+                    <div class="memory-date">Learned {{ memory.createdAt | date: 'mediumDate' }}</div>
+                  </div>
+                  <button type="button" class="memory-remove" aria-label="Remove memory" (click)="removeMemory(memory.id)">🗑</button>
+                </li>
+              } @empty {
+                <li class="memory-empty">Nothing here yet.</li>
+              }
+            </ul>
+          </div>
+        }
+      </div>
+    </section>
+
+    <!-- Activity timeline -->
+    <section class="timeline-section">
+      <h2 class="lb-section-title">Activity history</h2>
+      <div class="lb-card timeline-card">
+        <ol class="timeline">
+          @for (event of timeline(); track $index) {
+            <li class="timeline-item">
+              <span class="timeline-dot" [style.background]="timelineColor(event.kind)">{{ timelineIcon(event.kind) }}</span>
+              <div class="timeline-body">
+                <div class="timeline-line">
+                  <span class="timeline-title">{{ event.title }}</span>
+                  <span class="timeline-at">{{ event.at | date: 'short' }}</span>
+                </div>
+                @if (event.detail) {
+                  <div class="timeline-detail">{{ event.detail }}</div>
+                }
+              </div>
+            </li>
+          } @empty {
+            <li class="lb-muted">No activity yet.</li>
+          }
+        </ol>
+      </div>
+    </section>
+
+    <!-- Family & devices -->
+    <section class="family">
+      <h2 class="lb-section-title">Family & devices</h2>
+      @if (learner(); as l) {
+        <div class="family-card lb-card">
+          <div class="family-top">
+            <div class="family-avatar" [style.background]="avatar().themeColor + '18'">
+              <lb-avatar [config]="avatar()" [size]="64" />
+            </div>
+            <div class="family-meta">
+              <div class="family-name">{{ l.displayName }}</div>
+              <div class="family-pills">
+                <span class="lb-pill" [class.online]="l.consentActive" [class.coral]="!l.consentActive">
+                  Consent {{ l.consentActive ? 'active' : 'revoked' }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="family-consent">
+            <span class="lb-muted">Data collection consent</span>
+            <button
+              type="button"
+              class="consent-toggle"
+              [class.on]="l.consentActive"
+              [attr.aria-pressed]="l.consentActive"
+              (click)="toggleConsent()"
+            >
+              <span class="consent-knob"></span>
+            </button>
+          </div>
+        </div>
+      }
+    </section>
+  }
+
+  <!-- Revoke confirmation -->
+  @if (confirmRevoke()) {
+    <div class="modal-backdrop lb-fade-in">
+      <div class="modal lb-card">
+        <div class="modal-title font-display">Revoke consent?</div>
+        <p class="modal-body">
+          JOURNEY will stop collecting new learning data for this child. Existing memories stay
+          unless you remove them. You can turn this back on at any time.
+        </p>
+        <div class="modal-actions">
+          <button type="button" class="lb-btn ghost sm" (click)="cancelRevoke()">Cancel</button>
+          <button type="button" class="lb-btn danger sm" (click)="confirmRevokeConsent()">Revoke consent</button>
+        </div>
+      </div>
+    </div>
+  }
+</lb-app-shell>

@@ -1,74 +1,87 @@
+/* Auth surfaces, rethemed to the LearnBridge token system (see styles.scss). */
+
 @mixin auth-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: #f4f5f7;
+  background: var(--lb-cream);
 }
 
 @mixin auth-card {
   width: 100%;
-  max-width: 380px;
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 32px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  max-width: 400px;
+  background: var(--lb-paper);
+  border: 1px solid var(--lb-line);
+  border-radius: var(--lb-radius-xl);
+  padding: 28px;
+  box-shadow: var(--lb-shadow-soft);
   display: flex;
   flex-direction: column;
+  animation: lb-fade-in 0.35s var(--lb-spring) both;
 
   h1 {
     margin: 0 0 4px;
-    font-size: 1.5rem;
+    font-family: var(--lb-font-display);
+    font-size: 1.75rem;
   }
 
   .subtitle {
     margin: 0 0 24px;
-    color: #6b7280;
+    color: var(--lb-ink-soft);
     font-size: 0.9rem;
   }
 
   label {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 600;
+    color: var(--lb-ink-soft);
     margin-top: 16px;
     margin-bottom: 6px;
   }
 
   input,
   textarea {
-    padding: 10px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
+    padding: 10px 14px;
+    border: 1px solid var(--lb-line);
+    border-radius: var(--lb-radius-lg);
     font-size: 0.95rem;
+    font-family: inherit;
+    background: var(--lb-paper);
+    color: var(--lb-ink);
+    transition:
+      border-color 0.2s var(--lb-smooth),
+      box-shadow 0.2s var(--lb-smooth);
 
     &:focus {
       outline: none;
-      border-color: #4338ca;
+      border-color: var(--lb-indigo);
+      box-shadow: var(--lb-shadow-ring);
     }
   }
 
   .field-error {
-    color: #b91c1c;
+    color: var(--lb-danger);
     font-size: 0.8rem;
     margin: 4px 0 0;
   }
 
   .form-error {
-    color: #b91c1c;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-radius: 8px;
+    color: var(--lb-danger);
+    background: color-mix(in oklab, var(--lb-danger) 8%, white);
+    border: 1px solid color-mix(in oklab, var(--lb-danger) 25%, white);
+    border-radius: var(--lb-radius-md);
     padding: 10px 12px;
     font-size: 0.85rem;
     margin-top: 16px;
   }
 
   .form-notice {
-    color: #92400e;
-    background: #fffbeb;
-    border: 1px solid #fde68a;
-    border-radius: 8px;
+    color: color-mix(in oklab, var(--lb-offline) 55%, black);
+    background: color-mix(in oklab, var(--lb-offline) 12%, white);
+    border: 1px solid color-mix(in oklab, var(--lb-offline) 30%, white);
+    border-radius: var(--lb-radius-md);
     padding: 10px 12px;
     font-size: 0.85rem;
     margin-top: 16px;
@@ -76,14 +89,19 @@
 
   button[type='submit'] {
     margin-top: 24px;
-    padding: 11px;
+    padding: 12px;
     border: none;
-    border-radius: 8px;
-    background: #4338ca;
+    border-radius: var(--lb-radius-pill);
+    background: var(--lb-indigo);
     color: #fff;
     font-weight: 600;
     font-size: 0.95rem;
+    font-family: inherit;
     cursor: pointer;
+    box-shadow: var(--lb-shadow-lift);
+    transition:
+      transform 0.2s var(--lb-spring),
+      background-color 0.2s var(--lb-smooth);
 
     &:disabled {
       opacity: 0.6;
@@ -91,7 +109,12 @@
     }
 
     &:not(:disabled):hover {
-      background: #372aa8;
+      background: var(--lb-indigo-deep);
+      transform: translateY(-2px);
+    }
+
+    &:not(:disabled):active {
+      transform: scale(0.97);
     }
   }
 
@@ -99,10 +122,10 @@
     margin: 20px 0 0;
     text-align: center;
     font-size: 0.85rem;
-    color: #6b7280;
+    color: var(--lb-ink-soft);
 
     a {
-      color: #4338ca;
+      color: var(--lb-indigo);
       font-weight: 600;
       text-decoration: none;
     }
@@ -116,6 +139,7 @@
 
     input[type='checkbox'] {
       margin-top: 3px;
+      accent-color: var(--lb-indigo);
     }
 
     label {
@@ -123,6 +147,7 @@
       font-weight: 400;
       font-size: 0.85rem;
       line-height: 1.4;
+      color: var(--lb-ink);
     }
   }
 }

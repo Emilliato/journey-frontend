@@ -1,35 +1,48 @@
 <div class="auth-page">
-  <form class="auth-card" [formGroup]="form" (ngSubmit)="submit()">
-    <h1>Sign in</h1>
-    <p class="subtitle">
-      Parents sign in with their email. Learners sign in with the username a parent set up.
-      Already signed in on this device before? You can sign in even without internet.
-    </p>
+  <div class="signin-shell lb-fade-in">
+    <div class="signin-hero">
+      <lb-avatar [config]="heroAvatar" [size]="104" />
+      <h1 class="font-display">Hi there 👋</h1>
+      <p class="hero-sub">
+        Sign in to meet <span>JOURNEY</span>, your learning companion.
+      </p>
+    </div>
 
-    <label for="identifier">Email or username</label>
-    <input id="identifier" type="text" formControlName="identifier" autocomplete="username" />
-    @if (form.controls.identifier.invalid && form.controls.identifier.touched) {
-      <p class="field-error">Enter your email (parents) or username (learners).</p>
-    }
+    <form class="auth-card" [formGroup]="form" (ngSubmit)="submit()">
+      <label for="identifier">Email or username</label>
+      <input id="identifier" type="text" formControlName="identifier" autocomplete="username" />
+      @if (form.controls.identifier.invalid && form.controls.identifier.touched) {
+        <p class="field-error">Enter your email (parents) or username (learners).</p>
+      }
 
-    <label for="password">Password</label>
-    <input id="password" type="password" formControlName="password" autocomplete="current-password" />
-    @if (form.controls.password.invalid && form.controls.password.touched) {
-      <p class="field-error">Password is required.</p>
-    }
+      <label for="password">Password</label>
+      <input id="password" type="password" formControlName="password" autocomplete="current-password" />
+      @if (form.controls.password.invalid && form.controls.password.touched) {
+        <p class="field-error">Password is required.</p>
+      }
 
-    @if (errorMessage()) {
-      <p class="form-error">{{ errorMessage() }}</p>
-    }
+      @if (errorMessage()) {
+        <p class="form-error">{{ errorMessage() }}</p>
+      }
 
-    @if (usedOfflineLogin()) {
-      <p class="offline-note">Signed in offline — everything will sync when you're back online.</p>
-    }
+      @if (usedOfflineLogin()) {
+        <p class="offline-note">Signed in offline — everything will sync when you're back online.</p>
+      }
 
-    <button type="submit" [disabled]="isSubmitting()">
-      {{ isSubmitting() ? 'Signing in…' : 'Sign in' }}
-    </button>
+      <button type="submit" [disabled]="isSubmitting()">
+        {{ isSubmitting() ? 'Signing in…' : 'Continue' }}
+      </button>
 
-    <p class="switch-link">No account yet? <a routerLink="/register">Create a parent account</a></p>
-  </form>
+      <div class="offline-hint">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M2 2l20 20" />
+          <path d="M8.5 16.5a5 5 0 0 1 7 0" />
+          <circle cx="12" cy="20" r="1" fill="currentColor" />
+        </svg>
+        <p>Sign-in works <b>offline</b> on devices you've used before — JOURNEY remembers you.</p>
+      </div>
+
+      <p class="switch-link">No account yet? <a routerLink="/register">Create a parent account</a></p>
+    </form>
+  </div>
 </div>

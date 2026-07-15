@@ -64,6 +64,9 @@ export class WebLlmService {
   readonly isLoading = signal(false);
   readonly loadProgressText = signal<string | null>(null);
 
+  /** 0..100 model-download/init progress, for the offline "getting ready" affordance. */
+  readonly loadProgressPercent = signal(0);
+
   /**
    * Human-readable reason the last engine load or generation failed —
    * surfaced in the chat UI so failures are diagnosable on a phone,
@@ -202,7 +205,10 @@ export class WebLlmService {
     const { CreateMLCEngine } = await import('@mlc-ai/web-llm');
 
     return CreateMLCEngine(modelId, {
-      initProgressCallback: (report) => this.loadProgressText.set(report.text),
+      initProgressCallback: (report) => {
+        this.loadProgressText.set(report.text);
+        this.loadProgressPercent.set(Math.round((report.progress ?? 0) * 100));
+      },
     });
   }
 }
