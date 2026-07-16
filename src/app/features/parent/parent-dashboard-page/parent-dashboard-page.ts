@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { LearnerService } from '../../../core/services/learner.service';
 import { JourneyService } from '../../../core/services/journey.service';
 import { DashboardService } from '../../../core/services/dashboard.service';
@@ -44,7 +44,7 @@ const CATEGORY_META: Record<
  */
 @Component({
   selector: 'app-parent-dashboard-page',
-  imports: [AppShellComponent, AvatarComponent, SparklineComponent, DatePipe],
+  imports: [AppShellComponent, AvatarComponent, SparklineComponent, DatePipe, RouterLink],
   templateUrl: './parent-dashboard-page.html',
   styleUrl: './parent-dashboard-page.scss',
 })

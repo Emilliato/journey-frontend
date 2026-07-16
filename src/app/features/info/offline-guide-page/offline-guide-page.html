@@ -1,0 +1,252 @@
+<div class="guide font-parent">
+  <header class="guide-topbar">
+    <button type="button" class="back" (click)="back()" aria-label="Go back">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5M11 6l-6 6 6 6" />
+      </svg>
+      Back
+    </button>
+    <a class="brand" routerLink="/learners">
+      <svg width="26" height="26" viewBox="0 0 40 40" aria-hidden="true">
+        <rect x="2" y="2" width="36" height="36" rx="12" fill="var(--lb-indigo)" />
+        <path d="M11 26 L11 14 L15 14 L15 22 L23 22 L23 26 Z" fill="#fff" />
+        <circle cx="28" cy="15" r="4" fill="var(--lb-amber)" />
+      </svg>
+      <span class="font-display">Learn<span>Bridge</span></span>
+    </a>
+  </header>
+
+  <div class="guide-body">
+    <!-- Hero -->
+    <section class="hero">
+      <p class="eyebrow">How it works</p>
+      <h1 class="font-display">JOURNEY keeps working with no internet.</h1>
+      <p class="lead">
+        When there's no connection, JOURNEY doesn't go quiet. A small AI model loads
+        <em>inside the browser</em> and answers your child directly on their device — then quietly
+        syncs everything back when the connection returns. Here's the whole picture.
+      </p>
+      <div class="facts">
+        <span class="fact"><b>Llama&nbsp;3.2</b> 1-billion-parameter model</span>
+        <span class="fact"><b>~880&nbsp;MB</b> runs on the phone's GPU</span>
+        <span class="fact"><b>0</b> data leaves the device offline</span>
+      </div>
+    </section>
+
+    <!-- 1 -->
+    <section class="stage">
+      <div class="stage-head"><span class="stage-num font-display">1</span><h2 class="font-display">Two brains, one companion</h2></div>
+      <p>
+        JOURNEY chooses where to think based on a real connectivity check — not the browser's
+        unreliable "online" flag, but an actual ping to the backend. Online, it uses the powerful
+        cloud model. Offline, it switches to the on-device model. Your child just keeps chatting.
+      </p>
+      <div class="diagram">
+        <div class="flow col">
+          <div class="node ghost center">
+            <div class="nlabel center">🔌 Connectivity check</div>
+            <div class="nsub">A lightweight health-check decides the route on every message</div>
+          </div>
+          <div class="arrow down" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6" /></svg>
+          </div>
+          <div class="row">
+            <div class="node tint-mint">
+              <span class="chip online">Online</span>
+              <div class="nsub"><b>Cloud brain</b> — the message goes to the backend Claude proxy and back. Full-strength answers.</div>
+            </div>
+            <div class="node tint-amber">
+              <span class="chip offline">Offline</span>
+              <div class="nsub"><b>On-device brain</b> — the local model replies right on the phone. No server, no signal needed.</div>
+            </div>
+          </div>
+        </div>
+        <div class="note">
+          <span class="ni" aria-hidden="true">🔀</span>
+          <p>If the signal drops <b>mid-conversation</b>, the running chat is handed to the on-device model with its history intact — your child continues the same conversation without noticing the switch.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="stage">
+      <div class="stage-head"><span class="stage-num font-display">2</span><h2 class="font-display">Getting the model onto the phone</h2></div>
+      <p>
+        The model is downloaded once, ahead of time — while there's still a connection — then cached
+        in the browser so it's ready the moment it's needed. Each step depends on the one before it.
+      </p>
+      <div class="diagram">
+        <div class="stepper">
+          <div class="step">
+            <div class="k">Step 1 · App opens</div>
+            <div class="t font-display">Warm start</div>
+            <div class="d">The download begins quietly in the background the instant the app loads — no waiting for your child to go offline first.</div>
+          </div>
+          <div class="step">
+            <div class="k">Step 2 · Download</div>
+            <div class="t font-display">~880&nbsp;MB of weights</div>
+            <div class="d">The model files stream down over any available connection. This is the one big cost, and it happens only once.</div>
+          </div>
+          <div class="step">
+            <div class="k">Step 3 · Cache</div>
+            <div class="t font-display">Stored in the browser</div>
+            <div class="d">The weights are kept on the device, so future sessions — and every offline session — skip the download entirely.</div>
+          </div>
+          <div class="step">
+            <div class="k">Step 4 · Warm up</div>
+            <div class="t font-display">Compile for the GPU</div>
+            <div class="d">A tiny throwaway run compiles the GPU shaders ahead of time, so the first real reply isn't slowed by one-time setup.</div>
+          </div>
+          <div class="step">
+            <div class="k">Step 5 · Ready</div>
+            <div class="t font-display">Offline-capable ✓</div>
+            <div class="d">From here JOURNEY can answer with no connection. A "Check offline readiness" button lets you confirm this in advance.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section class="stage">
+      <div class="stage-head"><span class="stage-num font-display">3</span><h2 class="font-display">Anatomy of one offline reply</h2></div>
+      <p>
+        A small model can't be trusted to know everything, so it isn't asked to. Before it generates,
+        JOURNEY assembles a focused prompt from what it already has on the device — then streams the
+        answer back word by word.
+      </p>
+      <div class="diagram">
+        <div class="flow col">
+          <div class="node"><div class="nlabel">💬 Your child types a message</div></div>
+          <div class="arrow down" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6" /></svg></div>
+          <div class="node tint-indigo">
+            <div class="nlabel">🧩 Assemble a focused prompt</div>
+            <div class="ingredients">
+              <span class="ingredient">Tight persona &amp; rules</span>
+              <span class="ingredient">What JOURNEY remembers about the learner</span>
+              <span class="ingredient">Relevant notes from a built-in library</span>
+              <span class="ingredient">The learner's saved goals</span>
+              <span class="ingredient">Last few chat turns</span>
+            </div>
+          </div>
+          <div class="arrow down" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6" /></svg></div>
+          <div class="node tint-amber">
+            <div class="nlabel">⚙️ The model runs on the GPU</div>
+            <div class="nsub">Inside a background worker, capped short (~120 words) so replies finish quickly even on a mid-range phone.</div>
+          </div>
+          <div class="arrow down" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6" /></svg></div>
+          <div class="node tint-mint">
+            <div class="nlabel">✨ Streams into the chat</div>
+            <div class="nsub">Words appear as they're generated — the reply starts almost immediately instead of after the whole answer is done.</div>
+          </div>
+        </div>
+        <div class="note">
+          <span class="ni" aria-hidden="true">🛟</span>
+          <p><b>Honesty over guessing.</b> The persona tells the model to give one clear, correct step — and if it isn't sure, to say <em>"let's check that one when we're back online"</em> rather than invent a fact. For a child, a wrong answer is worse than a deferred one.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section class="stage">
+      <div class="stage-head"><span class="stage-num font-display">4</span><h2 class="font-display">Why the app stays smooth</h2></div>
+      <p>
+        Running an AI model is heavy work. If it shared the same thread that draws the screen, the app
+        would freeze while it thought. So the model lives in a separate background worker — the screen
+        stays responsive the whole time.
+      </p>
+      <div class="diagram">
+        <div class="lanes">
+          <div class="lane ui">
+            <div class="lane-h font-display">🖐️ Main thread <span class="chip online">stays free</span></div>
+            <ul>
+              <li>Draws the chat, avatar and animations</li>
+              <li>Handles taps, typing and scrolling</li>
+              <li>Never blocks while the model thinks</li>
+            </ul>
+          </div>
+          <div class="lane worker">
+            <div class="lane-h font-display">⚙️ Background worker</div>
+            <ul>
+              <li>Loads and holds the model</li>
+              <li>Runs the GPU computation</li>
+              <li>Sends finished words back to the screen</li>
+            </ul>
+          </div>
+        </div>
+        <div class="note">
+          <span class="ni" aria-hidden="true">📴</span>
+          <p>The device's GPU is reserved for the model. That's why the whole interface uses lightweight drawing (simple shapes and gentle motion) and no heavy graphics — the graphics budget belongs to the AI.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section class="stage">
+      <div class="stage-head"><span class="stage-num font-display">5</span><h2 class="font-display">Safe offline, synced on return</h2></div>
+      <p>
+        Anything JOURNEY learns offline — a new goal, a noted preference — is written locally and
+        marked "to sync". The moment the connection is back, it's reconciled with the server. And it's
+        all still gated by the same rule as online: nothing about a learner is recorded without your
+        active consent.
+      </p>
+      <div class="diagram">
+        <div class="flow wrap center-y">
+          <div class="node tint-amber">
+            <span class="chip offline">Offline</span>
+            <div class="nsub">New goals &amp; memories are saved on the device and flagged <code>pending&nbsp;sync</code> — but only if consent is active.</div>
+          </div>
+          <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg></div>
+          <div class="node ghost center">
+            <div class="nlabel center">📶 Connection returns</div>
+            <div class="nsub">Detected automatically</div>
+          </div>
+          <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg></div>
+          <div class="node tint-mint">
+            <span class="chip online">Synced</span>
+            <div class="nsub">Queued changes are pushed to the server and the local copies are reconciled. The status shows right next to the connection pill.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section class="stage">
+      <div class="stage-head"><span class="stage-num font-display">6</span><h2 class="font-display">What a device needs</h2></div>
+      <p>
+        Offline JOURNEY needs a phone whose browser can run computation on the GPU (WebGPU). Most
+        phones from the last few years qualify. Where they don't, JOURNEY degrades gracefully rather
+        than breaking.
+      </p>
+      <div class="specs">
+        <div class="spec">
+          <div class="sk">Browser</div>
+          <div class="sv font-display">Chrome 113+</div>
+          <div class="sd">Or any browser with WebGPU enabled</div>
+        </div>
+        <div class="spec">
+          <div class="sk">GPU memory</div>
+          <div class="sv font-display">~0.9–1.1 GB</div>
+          <div class="sd">For the model while it runs</div>
+        </div>
+        <div class="spec">
+          <div class="sk">One-time download</div>
+          <div class="sv font-display">~880 MB</div>
+          <div class="sd">Cached after the first fetch</div>
+        </div>
+        <div class="spec">
+          <div class="sk">Storage</div>
+          <div class="sv font-display">~1 GB free</div>
+          <div class="sd">To keep the cached model</div>
+        </div>
+      </div>
+      <div class="note">
+        <span class="ni" aria-hidden="true">🪶</span>
+        <p><b>No WebGPU? It still works.</b> On a device that can't run the model, JOURNEY drops to a cached-content mode: your child still sees their profile, goals and saved chat, and can reconnect to use the cloud brain. The app never simply fails.</p>
+      </div>
+    </section>
+
+    <footer class="guide-footer">
+      <p><b>In one line:</b> a small AI model is downloaded once, cached on the phone, and run inside a background worker on the device's GPU — so JOURNEY keeps helping your child offline, honestly and safely, and syncs back the moment there's a signal.</p>
+    </footer>
+  </div>
+</div>

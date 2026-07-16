@@ -47,5 +47,14 @@ export const routes: Routes = [
         (m) => m.ParentDashboardPage,
       ),
   },
+  {
+    // Public info page — how JOURNEY works offline. No auth: linkable from
+    // anywhere, including sign-in.
+    path: 'offline-guide',
+    loadComponent: () =>
+      import('./features/info/offline-guide-page/offline-guide-page').then(
+        (m) => m.OfflineGuidePage,
+      ),
+  },
   { path: '**', redirectTo: 'learners' },
 ];
