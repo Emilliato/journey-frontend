@@ -5,6 +5,7 @@ import { ActivatedRoute } from '@angular/router';
 import { LearnerService } from '../../../core/services/learner.service';
 import { JourneyService } from '../../../core/services/journey.service';
 import { DashboardService } from '../../../core/services/dashboard.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { ConnectivityService } from '../../../core/services/connectivity.service';
 import { OfflineCacheService } from '../../../core/offline/offline-cache.service';
 import { OfflineJourneyService } from '../../../core/offline/offline-journey.service';
@@ -58,6 +59,7 @@ export class ChatPage implements OnInit, OnDestroy {
   private readonly learnerService = inject(LearnerService);
   private readonly journeyService = inject(JourneyService);
   private readonly dashboardService = inject(DashboardService);
+  private readonly authService = inject(AuthService);
   private readonly connectivityService = inject(ConnectivityService);
   private readonly offlineCache = inject(OfflineCacheService);
   private readonly offlineJourneyService = inject(OfflineJourneyService);
@@ -114,11 +116,19 @@ export class ChatPage implements OnInit, OnDestroy {
     () => `linear-gradient(135deg, ${this.themeColor()}18, var(--lb-paper) 55%)`,
   );
 
-  readonly navItems = computed(() => [
-    { path: `/learners/${this.learnerId}/journey`, label: 'Learn', icon: '🌟' },
-    { path: `/learners/${this.learnerId}/avatar`, label: 'Avatar', icon: '🎨' },
-    { path: `/learners/${this.learnerId}/dashboard`, label: 'Parents', icon: '👪' },
-  ]);
+  readonly navItems = computed(() => {
+    const items = [
+      { path: `/learners/${this.learnerId}/journey`, label: 'Learn', icon: '🌟' },
+      { path: `/learners/${this.learnerId}/avatar`, label: 'Avatar', icon: '🎨' },
+    ];
+
+    // Learner-role accounts never see the parent dashboard tab.
+    if (this.authService.role() !== 'Learner') {
+      items.push({ path: `/learners/${this.learnerId}/dashboard`, label: 'Parents', icon: '👪' });
+    }
+
+    return items;
+  });
 
   /** Badge shelf — earned state derived from streak and progress signals. */
   readonly badges = computed<QuestBadge[]>(() => {
