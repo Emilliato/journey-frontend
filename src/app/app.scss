@@ -1,13 +1,16 @@
 .sync-status-badge {
   position: fixed;
-  bottom: 16px;
-  right: 16px;
+  // Sit clear above the floating bottom nav (which is ~48px tall at
+  // bottom: 0.75rem) so the two never overlap on small screens.
+  bottom: 5rem;
+  right: 1rem;
   z-index: 1000;
+  max-width: calc(100vw - 2rem);
   padding: 6px 12px;
   border-radius: var(--lb-radius-pill);
   font-size: 0.75rem;
   font-weight: 600;
-  box-shadow: var(--lb-shadow-soft);
+  box-shadow: var(--lb-shadow-lift);
 
   &.syncing {
     background: var(--lb-indigo-soft);
