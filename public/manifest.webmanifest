@@ -1,9 +1,12 @@
 {
-  "name": "learnbridge-web",
-  "short_name": "learnbridge-web",
+  "name": "LearnBridge",
+  "short_name": "LearnBridge",
+  "description": "JOURNEY — an AI learning companion for school-age learners, online and offline.",
   "display": "standalone",
   "scope": "./",
   "start_url": "./",
+  "background_color": "#FBF7EF",
+  "theme_color": "#4338CA",
   "icons": [
     {
       "src": "icons/icon-72x72.png",
