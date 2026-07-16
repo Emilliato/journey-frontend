@@ -4,25 +4,24 @@ import { ContentNote } from './content-pack';
 import { OfflinePersonaMemory, buildOfflineSystemPrompt } from './offline-persona';
 
 /**
- * The local model. Qwen2.5-0.5B-Instruct, chosen for speed on low-end phones:
- * at ~0.5B params (vs ~1.24B for Llama-3.2-1B) it decodes tokens markedly
- * faster, which is the offline pain point on mobile. GPU memory is about the
- * same (~945 MB vs ~879 MB — Qwen's large vocab offsets its smaller body), so
- * this trades a little model quality for latency, which suits JOURNEY's
- * deliberately narrow offline persona (short encouragement, goal recall,
- * simple cached-content Q&A — see offline-persona.ts). It's also strongly
- * multilingual. Model id confirmed against the installed @mlc-ai/web-llm
- * package's own model config, not guessed.
+ * The local model. Llama-3.2-1B-Instruct — chosen for reply quality on the
+ * scoped offline persona. (We trialled Qwen2.5-0.5B for faster decode, but
+ * its replies were too weak for learners, so we're back on the 1B.) Needs
+ * ~879 MB of GPU memory and is flagged low-resource-capable in the prebuilt
+ * config. Perceived offline speed is handled instead by the Web Worker (no
+ * UI freeze) + token streaming + generation caps (see below), not by
+ * dropping to a smaller model. Model id confirmed against the installed
+ * @mlc-ai/web-llm package's own model config, not guessed.
  */
-export const OFFLINE_MODEL_ID = 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
+export const OFFLINE_MODEL_ID = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
 
 /**
  * Fallback for GPUs without the `shader-f16` WebGPU feature (common on
- * older/budget Android GPUs): same model with f32 weights (~1060 MB GPU
- * memory vs ~945 MB). `'gpu' in navigator` passes on those devices, so
+ * older/budget Android GPUs): same model with f32 weights (~1128 MB GPU
+ * memory vs ~879 MB). `'gpu' in navigator` passes on those devices, so
  * without this fallback engine creation throws and offline replies fail.
  */
-export const OFFLINE_MODEL_ID_F32 = 'Qwen2.5-0.5B-Instruct-q4f32_1-MLC';
+export const OFFLINE_MODEL_ID_F32 = 'Llama-3.2-1B-Instruct-q4f32_1-MLC';
 
 /**
  * Minimal structural view of `navigator.gpu` — the project doesn't pull in

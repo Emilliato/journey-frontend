@@ -46,15 +46,11 @@
 .picker-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 1rem;
+  overflow: hidden;
   border-radius: var(--lb-radius-xl);
   background: var(--lb-paper);
   border: 1px solid var(--lb-line);
   box-shadow: var(--lb-shadow-soft);
-  text-decoration: none;
-  color: var(--lb-ink);
   transition:
     transform 0.2s var(--lb-spring),
     box-shadow 0.2s var(--lb-spring);
@@ -64,8 +60,34 @@
     box-shadow: var(--lb-shadow-lift);
   }
 
-  &.disabled {
+  &.disabled .picker-card-main {
     opacity: 0.75;
+  }
+}
+
+.picker-card-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1rem 0.75rem;
+  text-decoration: none;
+  color: var(--lb-ink);
+}
+
+.picker-card-dash {
+  display: block;
+  padding: 0.625rem;
+  border-top: 1px solid var(--lb-line);
+  text-align: center;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--lb-indigo);
+  text-decoration: none;
+  transition: background-color 0.15s var(--lb-smooth);
+
+  &:hover {
+    background: var(--lb-indigo-soft);
   }
 }
 

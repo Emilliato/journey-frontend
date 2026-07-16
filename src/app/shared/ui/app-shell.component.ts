@@ -72,11 +72,13 @@ export class AppShellComponent {
 
   readonly title = input('');
   readonly variant = input<'learner' | 'parent'>('learner');
-  /** Optional override; defaults to the learner nav set. */
+  /**
+   * Nav items. Every page passes its own learner-scoped set; this default is
+   * just a safe fallback (the per-learner routes need an id, so it only links
+   * back to the profile picker).
+   */
   readonly navItems = input<{ path: string; label: string; icon: string; exact?: boolean }[]>([
     { path: '/learners', label: 'Home', icon: '🏠', exact: true },
-    { path: '/avatar', label: 'Avatar', icon: '🎨' },
-    { path: '/parent', label: 'Parents', icon: '👪' },
   ]);
 
   logout(): void {
