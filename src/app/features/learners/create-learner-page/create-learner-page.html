@@ -1,51 +1,86 @@
-<div class="page">
-  <header class="page-header">
-    <h1>Add a child</h1>
-    <a routerLink="/learners" class="link-button">Cancel</a>
+<div class="create-page font-parent">
+  <header class="create-topbar">
+    <a routerLink="/learners" class="back">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5M11 6l-6 6 6 6" />
+      </svg>
+      Cancel
+    </a>
+    <span class="step-hint">New child profile</span>
   </header>
 
-  @if (!isCheckingConnectivity() && !isOnline()) {
-    <p class="offline-banner">
-      You're offline. Creating a child profile needs an internet connection — this can't be done offline.
-    </p>
-  }
+  <div class="create-body lb-fade-in">
+    <!-- Avatar preview hero -->
+    <section class="avatar-hero" [style.background]="'linear-gradient(135deg, ' + avatarConfig().themeColor + '22, var(--lb-paper) 60%)'">
+      <lb-avatar [config]="avatarConfig()" [size]="120" />
+      <h1 class="font-display">Add a child</h1>
+      <p class="hero-sub">Pick a starting look — your child can fully customise it later in the Avatar Studio.</p>
+      <button type="button" class="lb-btn soft sm" (click)="randomiseAvatar()">🎲 Surprise look</button>
+    </section>
 
-  <form class="form-card" [formGroup]="form" (ngSubmit)="submit()">
-    <label for="displayName">Child's name</label>
-    <input id="displayName" type="text" formControlName="displayName" autocomplete="off" />
-    @if (form.controls.displayName.invalid && form.controls.displayName.touched) {
-      <p class="field-error">A name is required.</p>
+    @if (!isCheckingConnectivity() && !isOnline()) {
+      <div class="offline-banner">
+        <span aria-hidden="true">📴</span>
+        <p>You're offline. Creating a child profile needs an internet connection — this can't be done offline.</p>
+      </div>
     }
 
-    <label for="username">Child's username</label>
-    <input id="username" type="text" formControlName="username" autocomplete="off" />
-    @if (form.controls.username.invalid && form.controls.username.touched) {
-      <p class="field-error">A username of at least 3 characters is required — the child signs in with it.</p>
-    }
-
-    <label for="password">Child's password</label>
-    <input id="password" type="password" formControlName="password" autocomplete="new-password" />
-    @if (form.controls.password.invalid && form.controls.password.touched) {
-      <p class="field-error">A password of at least 8 characters is required.</p>
-    }
-
-    <div class="checkbox-row">
-      <input id="consentGranted" type="checkbox" formControlName="consentGranted" />
-      <label for="consentGranted">
-        I am this child's parent or legal guardian and I consent to LearnBridge storing and using this
-        child's learning data as described in the privacy policy.
+    <form class="form-card lb-card" [formGroup]="form" (ngSubmit)="submit()">
+      <label class="field">
+        <span class="field-label">Child's name</span>
+        <div class="field-input" [class.invalid]="form.controls.displayName.invalid && form.controls.displayName.touched">
+          <input type="text" formControlName="displayName" autocomplete="off" placeholder="e.g. Maya" />
+        </div>
+        @if (form.controls.displayName.invalid && form.controls.displayName.touched) {
+          <span class="field-error">A name is required.</span>
+        }
       </label>
-    </div>
-    @if (form.controls.consentGranted.invalid && form.controls.consentGranted.touched) {
-      <p class="field-error">Consent is required to create a child profile.</p>
-    }
 
-    @if (errorMessage()) {
-      <p class="form-error">{{ errorMessage() }}</p>
-    }
+      <div class="signin-group">
+        <div class="signin-head">
+          <span class="signin-title font-display">The child's sign-in</span>
+          <span class="signin-note">They'll use these to log in on their own.</span>
+        </div>
 
-    <button type="submit" class="primary-button" [disabled]="isSubmitting() || !isOnline()">
-      {{ isSubmitting() ? 'Saving…' : 'Create profile' }}
-    </button>
-  </form>
+        <label class="field">
+          <span class="field-label">Username</span>
+          <div class="field-input" [class.invalid]="form.controls.username.invalid && form.controls.username.touched">
+            <input type="text" formControlName="username" autocomplete="off" placeholder="e.g. maya_star" />
+          </div>
+          @if (form.controls.username.invalid && form.controls.username.touched) {
+            <span class="field-error">At least 3 characters — the child signs in with this.</span>
+          }
+        </label>
+
+        <label class="field">
+          <span class="field-label">Password</span>
+          <div class="field-input" [class.invalid]="form.controls.password.invalid && form.controls.password.touched">
+            <input type="password" formControlName="password" autocomplete="new-password" placeholder="At least 8 characters" />
+          </div>
+          @if (form.controls.password.invalid && form.controls.password.touched) {
+            <span class="field-error">A password of at least 8 characters is required.</span>
+          }
+        </label>
+      </div>
+
+      <label class="consent-row" [class.invalid]="form.controls.consentGranted.invalid && form.controls.consentGranted.touched">
+        <input type="checkbox" formControlName="consentGranted" />
+        <span>
+          I am this child's parent or legal guardian and I consent to LearnBridge storing and using
+          this child's learning data as described in the privacy policy.
+        </span>
+      </label>
+      @if (form.controls.consentGranted.invalid && form.controls.consentGranted.touched) {
+        <p class="field-error consent-error">Consent is required to create a child profile.</p>
+      }
+
+      @if (errorMessage()) {
+        <p class="form-error">{{ errorMessage() }}</p>
+      }
+
+      <button type="submit" class="lb-btn primary lg submit" [disabled]="isSubmitting() || !isOnline()">
+        {{ isSubmitting() ? 'Saving…' : 'Create profile' }}
+      </button>
+    </form>
+  </div>
 </div>

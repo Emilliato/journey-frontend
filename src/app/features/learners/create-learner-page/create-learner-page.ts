@@ -4,16 +4,22 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ConnectivityService } from '../../../core/services/connectivity.service';
 import { LearnerService } from '../../../core/services/learner.service';
+import { AvatarComponent } from '../../../shared/avatar/avatar.component';
+import { AvatarConfig, randomAvatarConfig } from '../../../shared/avatar/avatar-config';
 
 /**
  * Child profile creation — deliberately online-only, no offline queue (see
  * PLAN.md Phase 2 and CLAUDE.md constraint 1). Connectivity is checked both
  * up front (to disable the form early) and again at submit time, since
  * navigator.onLine can go stale between the two.
+ *
+ * The parent also picks a starting avatar here; it's saved right after the
+ * profile is created (best-effort) so the child has a companion from day one
+ * and can fully customise it later in the Avatar Studio.
  */
 @Component({
   selector: 'app-create-learner-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, AvatarComponent],
   templateUrl: './create-learner-page.html',
   styleUrl: './create-learner-page.scss',
 })
@@ -32,6 +38,9 @@ export class CreateLearnerPage implements OnInit, OnDestroy {
     consentGranted: [false, [Validators.requiredTrue]],
   });
 
+  /** A starting avatar for the new child (customisable later in the Studio). */
+  readonly avatarConfig = signal<AvatarConfig>(randomAvatarConfig());
+
   readonly isOnline = signal(true);
   readonly isCheckingConnectivity = signal(true);
   readonly isSubmitting = signal(false);
@@ -49,6 +58,10 @@ export class CreateLearnerPage implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     window.removeEventListener('online', this.handleOnline);
     window.removeEventListener('offline', this.handleOffline);
+  }
+
+  randomiseAvatar(): void {
+    this.avatarConfig.set(randomAvatarConfig());
   }
 
   submit(): void {
@@ -81,10 +94,7 @@ export class CreateLearnerPage implements OnInit, OnDestroy {
           password: password!,
         })
         .subscribe({
-          next: () => {
-            this.isSubmitting.set(false);
-            this.router.navigateByUrl('/learners');
-          },
+          next: (learner) => this.saveAvatarThenFinish(learner.id),
           error: (error: HttpErrorResponse) => {
             this.isSubmitting.set(false);
 
@@ -99,6 +109,22 @@ export class CreateLearnerPage implements OnInit, OnDestroy {
           },
         });
     });
+  }
+
+  /**
+   * Persists the chosen starting avatar, then returns to the picker. The
+   * avatar is a nice-to-have, so a failure here still completes the flow —
+   * the profile itself is already created.
+   */
+  private saveAvatarThenFinish(learnerId: string): void {
+    const done = () => {
+      this.isSubmitting.set(false);
+      void this.router.navigateByUrl('/learners');
+    };
+
+    this.learnerService
+      .updateAvatar(learnerId, JSON.stringify(this.avatarConfig()))
+      .subscribe({ next: done, error: done });
   }
 
   private refreshConnectivity(): void {
