@@ -16,6 +16,7 @@ function configure(options: {
   online: boolean;
   webGpuSupported: boolean;
   consentActive?: boolean;
+  role?: 'Parent' | 'Learner';
   cachedChat?: { id: string; learnerId: string; role: 'learner' | 'journey'; text: string; createdAt: string }[];
 }) {
   const learnerService = {
@@ -67,9 +68,9 @@ function configure(options: {
     imports: [ChatPage],
     providers: [
       provideRouter([]),
-      // The app shell (rendered inside the page) injects AuthService for its
-      // sign-out control — stub it so the component renders without HttpClient.
-      { provide: AuthService, useValue: { logout: vi.fn() } },
+      // The app shell + role-aware nav (rendered inside the page) use
+      // AuthService — stub it so the component renders without HttpClient.
+      { provide: AuthService, useValue: { logout: vi.fn(), role: () => options.role ?? 'Parent' } },
       { provide: LearnerService, useValue: learnerService },
       { provide: JourneyService, useValue: journeyService },
       { provide: DashboardService, useValue: dashboardService },
@@ -167,6 +168,28 @@ describe('ChatPage', () => {
 
     const history = webLlmService.generateReply.mock.calls[0][4];
     expect(history).toEqual([{ role: 'assistant', content: 'Hi again!' }]);
+  });
+
+  it('hides the Parents tab from learner-role accounts', async () => {
+    configure({ online: true, webGpuSupported: false, role: 'Learner' });
+
+    const fixture = TestBed.createComponent(ChatPage);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const labels = fixture.componentInstance.navItems().map((i) => i.label);
+    expect(labels).toEqual(['Learn', 'Avatar']);
+  });
+
+  it('shows the Parents tab to parent accounts', async () => {
+    configure({ online: true, webGpuSupported: false, role: 'Parent' });
+
+    const fixture = TestBed.createComponent(ChatPage);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const labels = fixture.componentInstance.navItems().map((i) => i.label);
+    expect(labels).toContain('Parents');
   });
 
   it('streams the offline reply into the chat as tokens arrive', async () => {

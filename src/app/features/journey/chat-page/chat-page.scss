@@ -19,6 +19,12 @@
 .hero-avatar {
   position: relative;
   flex-shrink: 0;
+
+  // Shrink the companion on the narrowest screens so the JOURNEY details
+  // beside it never get clipped (the SVG scales via max-width:100%).
+  @media (max-width: 400px) {
+    width: 92px;
+  }
 }
 
 .hero-meta {
@@ -29,6 +35,7 @@
 .hero-name {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 0.25rem;
 
@@ -111,6 +118,8 @@
   border-radius: var(--lb-radius-lg);
   font-size: 0.875rem;
   line-height: 1.5;
+  // Long words / URLs wrap instead of forcing the bubble past the viewport.
+  overflow-wrap: anywhere;
   box-shadow: var(--lb-shadow-soft);
   background: var(--lb-paper);
   border: 1px solid var(--lb-line);
@@ -226,6 +235,9 @@
 
   input {
     flex: 1;
+    // Without this a flex item won't shrink below its intrinsic width, so
+    // the input pushes the send button off the right edge on narrow phones.
+    min-width: 0;
     border: none;
     outline: none;
     background: transparent;
@@ -243,6 +255,7 @@
     place-items: center;
     height: 2.25rem;
     width: 2.25rem;
+    flex-shrink: 0;
     border: none;
     border-radius: 50%;
     background: var(--lb-indigo);

@@ -1,6 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { LearnerService } from '../../../core/services/learner.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { OfflineCacheService } from '../../../core/offline/offline-cache.service';
 import { ConnectivityService } from '../../../core/services/connectivity.service';
 import { AvatarComponent } from '../../../shared/avatar/avatar.component';
@@ -34,6 +35,7 @@ const REACTIONS = ['Looking good! ✨', 'Ooh, that suits you!', 'Fresh vibes �
 export class AvatarStudioPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly learnerService = inject(LearnerService);
+  private readonly authService = inject(AuthService);
   private readonly offlineCache = inject(OfflineCacheService);
   private readonly connectivity = inject(ConnectivityService);
 
@@ -54,11 +56,19 @@ export class AvatarStudioPage implements OnInit {
 
   readonly configJson = computed(() => JSON.stringify(this.config(), null, 2));
 
-  readonly navItems = computed(() => [
-    { path: `/learners/${this.learnerId}/journey`, label: 'Learn', icon: '🌟' },
-    { path: `/learners/${this.learnerId}/avatar`, label: 'Avatar', icon: '🎨' },
-    { path: `/learners/${this.learnerId}/dashboard`, label: 'Parents', icon: '👪' },
-  ]);
+  readonly navItems = computed(() => {
+    const items = [
+      { path: `/learners/${this.learnerId}/journey`, label: 'Learn', icon: '🌟' },
+      { path: `/learners/${this.learnerId}/avatar`, label: 'Avatar', icon: '🎨' },
+    ];
+
+    // Learner-role accounts never see the parent dashboard tab.
+    if (this.authService.role() !== 'Learner') {
+      items.push({ path: `/learners/${this.learnerId}/dashboard`, label: 'Parents', icon: '👪' });
+    }
+
+    return items;
+  });
 
   ngOnInit(): void {
     void this.load();
