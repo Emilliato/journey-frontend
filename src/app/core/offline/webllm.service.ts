@@ -45,16 +45,16 @@ export interface OfflineChatTurn {
  * The small local model gets a bounded window of prior turns: enough for
  * continuity, small enough to keep prompts fast on a phone GPU. Kept short
  * on purpose — every extra turn lengthens prefill, the slowest part of a
- * reply on mobile.
+ * reply on a mid-range mobile GPU (e.g. Mali-G68).
  */
-const MAX_HISTORY_TURNS = 6;
+const MAX_HISTORY_TURNS = 4;
 
 /**
  * Cap on generated tokens. JOURNEY's offline replies to a child are meant to
- * be short and encouraging, and a cap bounds the worst-case wait on a slow
- * phone GPU (decode time scales with tokens produced).
+ * be short and encouraging, and a tight cap bounds the worst-case wait on a
+ * slow phone GPU (decode time scales with tokens produced).
  */
-const MAX_REPLY_TOKENS = 200;
+const MAX_REPLY_TOKENS = 120;
 
 /**
  * Runs JOURNEY's offline persona locally via WebLLM/WebGPU. Feature-detect
