@@ -1,9 +1,10 @@
 .sync-status-badge {
   position: fixed;
-  // Sit clear above the floating bottom nav (which is ~48px tall at
-  // bottom: 0.75rem) so the two never overlap on small screens.
-  bottom: 5rem;
-  right: 1rem;
+  // Top bar: a small status pill just below the sticky header, centred and
+  // clear of both the header controls and the floating bottom nav.
+  top: 4rem;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 1000;
   max-width: calc(100vw - 2rem);
   padding: 6px 12px;

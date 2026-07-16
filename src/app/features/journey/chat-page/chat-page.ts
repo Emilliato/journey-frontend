@@ -1,5 +1,15 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, computed, effect, inject, signal } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  computed,
+  effect,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { LearnerService } from '../../../core/services/learner.service';
@@ -149,7 +159,19 @@ export class ChatPage implements OnInit, OnDestroy {
     message: ['', [Validators.required]],
   });
 
+  /** The scrollable transcript container — kept pinned to the newest message. */
+  private readonly chatScroll = viewChild<ElementRef<HTMLElement>>('chatScroll');
+
   constructor() {
+    // Auto-scroll to the newest message as replies stream in / arrive and
+    // while JOURNEY is "thinking". Tracks messages() and isSending() so it
+    // re-runs on every token during a streamed offline reply.
+    effect(() => {
+      this.messages();
+      this.isSending();
+      this.scrollToBottom();
+    });
+
     effect(() => {
       const online = this.connectivityService.isOnline();
 
@@ -307,6 +329,25 @@ export class ChatPage implements OnInit, OnDestroy {
   private appendMessage(role: 'learner' | 'journey', text: string): void {
     this.messages.update((current) => [...current, { role, text }]);
     void this.offlineCache.appendChatMessage(this.learnerId, role, text);
+  }
+
+  /** Pins the transcript to the bottom after the DOM paints the new content. */
+  private scrollToBottom(): void {
+    const el = this.chatScroll()?.nativeElement;
+    if (!el) {
+      return;
+    }
+
+    const run = (): void => {
+      el.scrollTop = el.scrollHeight;
+    };
+
+    // Defer to after paint so scrollHeight reflects the just-added content.
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(run);
+    } else {
+      run();
+    }
   }
 
   private initOnline(): void {
