@@ -3,6 +3,7 @@ import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { ConnectionPillComponent } from './connection-pill.component';
 import { AuthService } from '../../core/services/auth.service';
 import { ConnectivityService } from '../../core/services/connectivity.service';
+import { SyncManagerService } from '../../core/offline/sync-manager.service';
 
 /**
  * The learner/parent chrome: brand header with a connection pill, a
@@ -27,6 +28,19 @@ import { ConnectivityService } from '../../core/services/connectivity.service';
         </a>
         <div class="shell-title">{{ title() }}</div>
         <div class="shell-right">
+          <!-- Sync status sits right next to the connection pill. Skipped
+               when idle, and when offline (the pill already says Offline). -->
+          @if (syncManager.status(); as status) {
+            @if (status === 'syncing' || status === 'synced' || status === 'error') {
+              <span class="sync-chip {{ status }}">
+                @switch (status) {
+                  @case ('syncing') { Syncing… }
+                  @case ('synced') { Synced }
+                  @case ('error') { Sync failed }
+                }
+              </span>
+            }
+          }
           <lb-connection-pill />
           <!-- Sign-out lives on every shell page so both roles can always
                leave. Hidden offline: signing out clears the cached session
@@ -69,6 +83,7 @@ export class AppShellComponent {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   protected readonly connectivity = inject(ConnectivityService);
+  protected readonly syncManager = inject(SyncManagerService);
 
   readonly title = input('');
   readonly variant = input<'learner' | 'parent'>('learner');

@@ -78,6 +78,39 @@
   justify-self: end;
 }
 
+.sync-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--lb-radius-pill);
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &.syncing {
+    background: var(--lb-indigo-soft);
+    color: var(--lb-indigo);
+  }
+  &.synced {
+    background: color-mix(in oklab, var(--lb-online) 14%, white);
+    color: color-mix(in oklab, var(--lb-online) 60%, black);
+  }
+  &.error {
+    background: color-mix(in oklab, var(--lb-danger) 10%, white);
+    color: var(--lb-danger);
+  }
+
+  // On the narrowest screens the header is tight; the connection pill and
+  // sign-out take priority, so drop the sync chip's label to a dot.
+  @media (max-width: 400px) {
+    padding: 0.25rem;
+    width: 0.5rem;
+    height: 0.5rem;
+    overflow: hidden;
+    text-indent: -999px;
+  }
+}
+
 .sign-out {
   display: inline-grid;
   place-items: center;
