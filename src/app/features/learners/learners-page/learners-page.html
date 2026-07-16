@@ -35,34 +35,35 @@
   } @else {
     <div class="picker-grid">
       @for (learner of pickerLearners(); track learner.id; let i = $index) {
-        @if (learner.consentActive) {
-          <a
-            class="picker-card lb-pop"
-            [style.animation-delay.ms]="i * 60"
-            [routerLink]="['/learners', learner.id, 'journey']"
-          >
-            <div class="picker-avatar" [style.background]="learner.avatar.themeColor + '18'">
-              <lb-avatar [config]="learner.avatar" [size]="104" />
+        <div class="picker-card lb-pop" [class.disabled]="!learner.consentActive" [style.animation-delay.ms]="i * 60">
+          @if (learner.consentActive) {
+            <a class="picker-card-main" [routerLink]="['/learners', learner.id, 'journey']">
+              <div class="picker-avatar" [style.background]="learner.avatar.themeColor + '18'">
+                <lb-avatar [config]="learner.avatar" [size]="104" />
+              </div>
+              <div class="picker-name font-display">{{ learner.displayName }}</div>
+              <span class="lb-pill mint">Ready ✓</span>
+            </a>
+          } @else {
+            <div class="picker-card-main">
+              <div class="picker-avatar" [style.background]="learner.avatar.themeColor + '18'">
+                <lb-avatar [config]="learner.avatar" [size]="104" state="sleepy" />
+              </div>
+              <div class="picker-name font-display">{{ learner.displayName }}</div>
+              <span class="lb-pill amber">Consent inactive</span>
             </div>
-            <div class="picker-name font-display">{{ learner.displayName }}</div>
-            <span class="lb-pill mint">Ready ✓</span>
+          }
+          <!-- Per-child dashboard: the working way for a parent to reach it. -->
+          <a class="picker-card-dash" [routerLink]="['/learners', learner.id, 'dashboard']">
+            📊 Parent dashboard
           </a>
-        } @else {
-          <div class="picker-card disabled" [style.animation-delay.ms]="i * 60">
-            <div class="picker-avatar" [style.background]="learner.avatar.themeColor + '18'">
-              <lb-avatar [config]="learner.avatar" [size]="104" state="sleepy" />
-            </div>
-            <div class="picker-name font-display">{{ learner.displayName }}</div>
-            <span class="lb-pill amber">Consent inactive</span>
-          </div>
-        }
+        </div>
       }
     </div>
 
     @if (!isOfflineList()) {
       <div class="picker-actions">
         <a routerLink="/learners/new" class="lb-btn soft">Add another child</a>
-        <a routerLink="/parent" class="lb-btn ghost">Parent dashboard →</a>
         <button type="button" class="lb-btn ghost" (click)="logout()">Sign out</button>
       </div>
     }
